@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: slendywing-guard
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: TOKEN
+        sync: false
+      - key: NODE_VERSION
+        value: 22.11.0
