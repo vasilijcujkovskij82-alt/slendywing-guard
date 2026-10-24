@@ -176,8 +176,15 @@ if (PORT) {
 
   http
     .createServer((req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('SlendyWing Guard работает');
+      const body = {
+        ok: true,
+        botOnline: client.isReady(),
+        botTag: client.user ? client.user.tag : null,
+        uptimeSec: Math.round(process.uptime()),
+        guilds: client.guilds.cache.map((g) => ({ name: g.name, id: g.id })),
+      };
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body, null, 2));
     })
     .listen(Number(PORT), () => {
       console.log(`  HTTP-порт ${PORT} открыт (для хостинга)`);
