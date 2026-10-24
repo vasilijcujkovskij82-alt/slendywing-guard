@@ -189,4 +189,15 @@ if (PORT) {
     .listen(Number(PORT), () => {
       console.log(`  HTTP-порт ${PORT} открыт (для хостинга)`);
     });
+
+  // Самопинг: не даём бесплатному Render уснуть.
+  // Render сам передаёт переменную RENDER_EXTERNAL_URL.
+  const selfUrl = process.env.RENDER_EXTERNAL_URL;
+  if (selfUrl) {
+    const ping = () => {
+      fetch(selfUrl, { signal: AbortSignal.timeout(20000) }).catch(() => {});
+    };
+    setInterval(ping, 10 * 60 * 1000);
+    console.log(`  Самопинг каждые 10 минут: ${selfUrl}`);
+  }
 }
