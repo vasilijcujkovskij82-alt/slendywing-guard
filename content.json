@@ -31,7 +31,8 @@
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/about.jpg",
       "buttons": [
         {
-          "label": "ДОСКА ПОЧЕТА",
+          "label": "༻ │ ДОСКА ПОЧЕТА",
+          "emoji": "🎖",
           "target": "honor"
         }
       ]

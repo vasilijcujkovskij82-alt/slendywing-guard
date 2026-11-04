@@ -6,9 +6,13 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const emojis = require('./emojis');
 
 function makeButton({ customId, label, emoji }) {
+  const text = String(label || '').toUpperCase();
+  // Если в названии уже есть разделитель «│», оставляем как есть
+  const caption = text.includes('│') ? text : `│ ${text}`;
+
   const button = new ButtonBuilder()
     .setCustomId(customId)
-    .setLabel(`│ ${String(label || '').toUpperCase()}`)
+    .setLabel(caption)
     .setStyle(ButtonStyle.Secondary);
 
   const parsed = emojis.forButton(emoji);
@@ -46,8 +50,9 @@ function sectionRows(section, sections) {
     .slice(0, 5)
     .map((button) => {
       if (button.target.startsWith('url:')) {
+        const linkText = String(button.label || 'ССЫЛКА').toUpperCase();
         const link = new ButtonBuilder()
-          .setLabel(`│ ${String(button.label || 'ССЫЛКА').toUpperCase()}`)
+          .setLabel(linkText.includes('│') ? linkText : `│ ${linkText}`)
           .setStyle(ButtonStyle.Link)
           .setURL(button.target.slice(4));
 
