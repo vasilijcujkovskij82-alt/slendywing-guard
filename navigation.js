@@ -224,9 +224,8 @@ const SECTIONS = {
 // Цвет боковой полосы эмбеда — rgb(38, 43, 100)
 const SECTION_COLOR = 0x262b64;
 
-// Баннер для карточки навигации.
-// Вставь прямую ссылку на картинку, например:
-// 'https://cdn.discordapp.com/attachments/123/456/banner.png'
-const BANNER_URL = '';
+// Баннер для карточки навигации (файл лежит в assets/banner.webp)
+const BANNER_URL =
+  'https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/banner.webp';
 
 module.exports = { SECTIONS, BANNER_URL, SECTION_COLOR };
