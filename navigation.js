@@ -212,7 +212,7 @@ const SECTIONS = {
   rules: {
     label: 'Правила',
     emoji: '📚',
-    title: '🕊️ПРАВИЛА🕊️',
+    title: '', // заголовок выводится как markdown-строка в описании
     text: RULES,
     image: 'https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/rules.jpg',
   },

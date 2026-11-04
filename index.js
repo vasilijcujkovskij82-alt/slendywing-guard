@@ -124,8 +124,11 @@ async function sendSection(interaction, key) {
     text = text.replace('{MEMBERS}', String(interaction.guild ? interaction.guild.memberCount : '—'));
   }
 
-  // Первую строку-заголовок убираем: он переехал в title эмбеда
-  text = text.replace(/^#\s[^\n]*\n+/, '');
+  // Если у раздела есть отдельный заголовок — убираем первую строку текста,
+  // иначе заголовок из текста остаётся (и рисуется как markdown H1)
+  if (section.title) {
+    text = text.replace(/^#\s[^\n]*\n+/, '');
+  }
 
   const parts = chunkText(text, 4000);
   const icon = interaction.guild?.iconURL({ size: 256 }) ?? null;
@@ -133,7 +136,7 @@ async function sendSection(interaction, key) {
   const embeds = parts.map((part, index) => {
     const embed = new EmbedBuilder().setColor(SECTION_COLOR).setDescription(part);
     if (index === 0) {
-      embed.setTitle(section.title);
+      if (section.title) embed.setTitle(section.title);
       if (icon) embed.setThumbnail(icon);
     }
     return embed;
