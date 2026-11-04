@@ -2,7 +2,7 @@
 
 const path = require('node:path');
 const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { SECTIONS, BANNER_URL } = require('./navigation');
+const { SECTIONS, BANNER_URL, SECTION_COLOR } = require('./navigation');
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -124,12 +124,26 @@ async function sendSection(interaction, key) {
     text = text.replace('{MEMBERS}', String(interaction.guild ? interaction.guild.memberCount : '—'));
   }
 
-  const parts = chunkText(text);
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-  await interaction.editReply({ content: parts[0] });
+  // Первую строку-заголовок убираем: он переехал в title эмбеда
+  text = text.replace(/^#\s[^\n]*\n+/, '');
 
-  for (const part of parts.slice(1)) {
-    await interaction.followUp({ content: part, flags: MessageFlags.Ephemeral });
+  const parts = chunkText(text, 4000);
+  const icon = interaction.guild?.iconURL({ size: 256 }) ?? null;
+
+  const embeds = parts.map((part, index) => {
+    const embed = new EmbedBuilder().setColor(SECTION_COLOR).setDescription(part);
+    if (index === 0) {
+      embed.setTitle(section.title);
+      if (icon) embed.setThumbnail(icon);
+    }
+    return embed;
+  });
+
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  await interaction.editReply({ embeds: [embeds[0]] });
+
+  for (const embed of embeds.slice(1)) {
+    await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
   }
 }
 
@@ -276,8 +290,10 @@ client.on('interactionCreate', async (interaction) => {
         .setAuthor({ name: 'SLENDYWING' })
         .setTitle('𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆')
         .setDescription('Выбери раздел кнопкой ниже 👇')
-        .setColor(0x1e3a8a);
+        .setColor(SECTION_COLOR);
 
+      const icon = interaction.guild?.iconURL({ size: 256 });
+      if (icon) embed.setThumbnail(icon);
       if (BANNER_URL) embed.setImage(BANNER_URL);
 
       await interaction.reply({ embeds: [embed], components: [navRow()] });

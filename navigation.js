@@ -209,15 +209,18 @@ const ABOUT = `# ༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺
 > # 𝄢 📌 │ А также спасибо всем участникам с ролью <@&1293182326825685023> !`;
 
 const SECTIONS = {
-  rules: { label: 'Правила', emoji: '📚', text: RULES },
-  violations: { label: 'Нарушения', emoji: '🚫', text: VIOLATIONS },
-  roles: { label: 'Роли', emoji: '🎭', text: ROLES },
-  about: { label: 'О SlendyWing', emoji: '❔', text: ABOUT },
+  rules: { label: 'Правила', emoji: '📚', title: '🕊️ПРАВИЛА🕊️', text: RULES },
+  violations: { label: 'Нарушения', emoji: '🚫', title: '🚫НАРУШЕНИЯ🚫', text: VIOLATIONS },
+  roles: { label: 'Роли', emoji: '🎭', title: '🎭РОЛИ🎭', text: ROLES },
+  about: { label: 'О SlendyWing', emoji: '❔', title: '❔О SLENDYWING❔', text: ABOUT },
 };
+
+// Цвет боковой полосы эмбеда (тёмно-серый, как у JuniorBot)
+const SECTION_COLOR = 0x232428;
 
 // Баннер для карточки навигации.
 // Вставь прямую ссылку на картинку, например:
 // 'https://cdn.discordapp.com/attachments/123/456/banner.png'
 const BANNER_URL = '';
 
-module.exports = { SECTIONS, BANNER_URL };
+module.exports = { SECTIONS, BANNER_URL, SECTION_COLOR };
