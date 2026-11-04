@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const { Client, GatewayIntentBits, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits } = require('discord.js');
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -49,6 +49,40 @@ async function blockRole(channel) {
   console.log(`  [OK] Закрыт канал: ${channel.name}  (${channel.guild.name})`);
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// Вспомогательные функции
+// ---------------------------------------------------------------------------
+function tempVoiceChannels(guild) {
+  return guild.channels.cache.filter(
+    (ch) =>
+      ch.parentId === CATEGORY_ID &&
+      (ch.type === ChannelType.GuildVoice || ch.type === ChannelType.GuildStageVoice)
+  );
+}
+
+function isBlocked(channel) {
+  const overwrite = channel.permissionOverwrites.cache.get(ROLE_ID);
+  if (!overwrite) return false;
+  return overwrite.deny.has(PermissionFlagsBits.ViewChannel) || overwrite.deny.has(PermissionFlagsBits.Connect);
+}
+
+async function unblockRole(channel) {
+  const overwrite = channel.permissionOverwrites.cache.get(ROLE_ID);
+  if (!overwrite) return false;
+  await channel.permissionOverwrites.delete(ROLE_ID, 'Снят запрет для роли Нарушитель');
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Слеш-команды
+// ---------------------------------------------------------------------------
+const COMMANDS = [
+  { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
+  { name: 'channels', description: 'Список голосовых каналов категории и их состояние' },
+  { name: 'block', description: 'Закрыть роль Нарушитель во всех каналах категории' },
+  { name: 'unblock', description: 'Снять запрет с каналов категории' },
+];
 
 // ---------------------------------------------------------------------------
 // Ищем сервер: по ID, потом по названию, потом единственный доступный
@@ -124,6 +158,14 @@ async function start() {
     console.log(`  Категория: ${category.name}`);
   }
 
+  // Регистрируем слеш-команды на этом сервере
+  try {
+    await client.application.commands.set(COMMANDS, guild.id);
+    console.log('  Команды: /status /channels /block /unblock');
+  } catch (err) {
+    console.log(`  [!] Не удалось зарегистрировать команды: ${err.message}`);
+  }
+
   // Закрываем уже существующие голосовые каналы в категории
   let closed = 0;
   for (const channel of guild.channels.cache.values()) {
@@ -157,6 +199,112 @@ client.on('channelCreate', async (channel) => {
 });
 
 client.on('error', (err) => console.log(`  [!] Ошибка: ${err.message}`));
+
+// ---------------------------------------------------------------------------
+// Обработка слеш-команд
+// ---------------------------------------------------------------------------
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  try {
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+      await interaction.reply({
+        content: 'Нужны права «Управление сервером».',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const guild = interaction.guild;
+    if (!guild) {
+      await interaction.reply({ content: 'Команда работает только на сервере.', ephemeral: true });
+      return;
+    }
+
+    const channels = tempVoiceChannels(guild);
+
+    if (interaction.commandName === 'status') {
+      const blocked = channels.filter((ch) => isBlocked(ch)).size;
+      const category = guild.channels.cache.get(CATEGORY_ID);
+      const role = guild.roles.cache.get(ROLE_ID);
+
+      await interaction.reply({
+        ephemeral: true,
+        content: [
+          `**Бот:** ${client.user.tag}`,
+          `**Онлайн:** ${Math.floor(process.uptime() / 60)} мин`,
+          `**Сервер:** ${guild.name}`,
+          `**Категория:** ${category ? category.name : 'не найдена'}`,
+          `**Роль:** ${role ? role.name : 'не найдена'}`,
+          `**Каналов в категории:** ${channels.size}`,
+          `**Из них закрыто:** ${blocked}`,
+        ].join('\n'),
+      });
+      return;
+    }
+
+    if (interaction.commandName === 'channels') {
+      if (channels.size === 0) {
+        await interaction.reply({ content: 'В категории нет голосовых каналов.', ephemeral: true });
+        return;
+      }
+
+      const lines = channels.map((ch) => `${isBlocked(ch) ? '🔒' : '🔓'} ${ch.name}`);
+      await interaction.reply({
+        ephemeral: true,
+        content: `**Голосовые каналы категории (${channels.size}):**\n${lines.join('\n')}`,
+      });
+      return;
+    }
+
+    if (interaction.commandName === 'block') {
+      await interaction.deferReply({ ephemeral: true });
+
+      let done = 0;
+      const failed = [];
+      for (const ch of channels.values()) {
+        try {
+          await blockRole(ch);
+          done++;
+        } catch (err) {
+          failed.push(`${ch.name}: ${err.message}`);
+        }
+      }
+
+      await interaction.editReply({
+        content:
+          `Закрыто каналов: **${done}**` +
+          (failed.length ? `\nОшибки:\n${failed.join('\n')}` : ''),
+      });
+      return;
+    }
+
+    if (interaction.commandName === 'unblock') {
+      await interaction.deferReply({ ephemeral: true });
+
+      let done = 0;
+      for (const ch of channels.values()) {
+        try {
+          if (await unblockRole(ch)) done++;
+        } catch {
+          // пропускаем
+        }
+      }
+
+      await interaction.editReply({ content: `Запрет снят с каналов: **${done}**` });
+    }
+  } catch (err) {
+    console.log(`  [!] Ошибка команды: ${err.message}`);
+
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content: `Ошибка: ${err.message}` }).catch(() => {});
+    } else {
+      await interaction
+        .reply({ content: `Ошибка: ${err.message}`, ephemeral: true })
+        .catch(() => {});
+    }
+  }
+});
 
 client.login(TOKEN).catch((err) => {
   console.log('');
