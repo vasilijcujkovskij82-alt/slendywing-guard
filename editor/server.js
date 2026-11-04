@@ -17,6 +17,86 @@ const GIT = fs.existsSync('C:\\Program Files\\Git\\cmd\\git.exe')
   ? 'C:\\Program Files\\Git\\cmd\\git.exe'
   : 'git';
 
+// ---------------------------------------------------------------------------
+// Список эмодзи для подсказки в редакторе
+// ---------------------------------------------------------------------------
+const DISCORD_API = 'https://discord.com/api/v10';
+const GUILD_ID = '1283395341881835581';
+
+let emojiCache = { at: 0, list: [] };
+
+function readToken() {
+  try {
+    const raw = fs.readFileSync(path.join(ROOT, '.env'), 'utf8');
+    const line = raw.split(/\r?\n/).find((l) => /^\s*TOKEN\s*=/.test(l));
+    if (!line) return '';
+    return line.split('=').slice(1).join('=').trim().replace(/^["']|["']$/g, '');
+  } catch {
+    return '';
+  }
+}
+
+async function apiGet(pathname, token) {
+  const res = await fetch(`${DISCORD_API}${pathname}`, {
+    headers: { Authorization: `Bot ${token}` },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`${pathname} -> ${res.status}`);
+  return res.json();
+}
+
+async function loadEmojis() {
+  if (Date.now() - emojiCache.at < 5 * 60 * 1000 && emojiCache.list.length) return emojiCache.list;
+
+  const token = readToken();
+  if (!token) throw new Error('В .env не найден TOKEN');
+
+  const me = await apiGet('/users/@me', token);
+  const list = [];
+
+  // Эмодзи приложения — работают на любом сервере
+  try {
+    const appEmojis = await apiGet(`/applications/${me.id}/emojis`, token);
+    for (const e of appEmojis.items || []) {
+      list.push({ name: e.name, id: e.id, animated: !!e.animated, source: 'бот' });
+    }
+  } catch {
+    // старые приложения без поддержки — не страшно
+  }
+
+  // Эмодзи серверов, где стоит бот
+  let guilds = [];
+  try {
+    guilds = await apiGet('/users/@me/guilds', token);
+  } catch {
+    guilds = [];
+  }
+
+  for (const guild of guilds) {
+    try {
+      const guildEmojis = await apiGet(`/guilds/${guild.id}/emojis`, token);
+      for (const e of guildEmojis) {
+        list.push({ name: e.name, id: e.id, animated: !!e.animated, source: guild.name });
+      }
+    } catch {
+      // нет доступа — пропускаем
+    }
+  }
+
+  const seen = new Set();
+  const unique = list
+    .filter((e) => {
+      const key = e.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  emojiCache = { at: Date.now(), list: unique };
+  return unique;
+}
+
 function send(res, code, body, type = 'application/json; charset=utf-8') {
   res.writeHead(code, { 'Content-Type': type });
   res.end(body);
@@ -49,6 +129,13 @@ const server = http.createServer((req, res) => {
     } catch (err) {
       return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
     }
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/emojis') {
+    loadEmojis()
+      .then((list) => send(res, 200, JSON.stringify({ ok: true, emojis: list })))
+      .catch((err) => send(res, 200, JSON.stringify({ ok: false, error: err.message, emojis: [] })));
+    return;
   }
 
   if (req.method === 'POST' && url.pathname === '/api/content') {

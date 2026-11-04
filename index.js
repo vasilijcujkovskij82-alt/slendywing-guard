@@ -3,6 +3,7 @@
 const path = require('node:path');
 const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const nav = require('./navigation'); // тексты перечитываются из content.json на лету
+const emojis = require('./emojis');  // :name: -> <:name:id> для эмодзи с других серверов
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -122,7 +123,8 @@ function navRows() {
         .setCustomId(`nav:${key}`)
         .setLabel(`│ ${String(section.label || key).toUpperCase()}`)
         .setStyle(ButtonStyle.Secondary);
-      if (section.emoji) button.setEmoji(section.emoji);
+      const emoji = emojis.forButton(section.emoji);
+      if (emoji) button.setEmoji(emoji);
       row.addComponents(button);
     }
     rows.push(row);
@@ -146,13 +148,16 @@ async function sendSection(interaction, key) {
     text = text.replace(/^#\s[^\n]*\n+/, '');
   }
 
+  // :name: -> <:name:id>, чтобы работали эмодзи с других серверов
+  text = emojis.resolve(text);
+
   const parts = chunkText(text, 4000);
   const icon = interaction.guild?.iconURL({ size: 256 }) ?? null;
 
   const embeds = parts.map((part, index) => {
     const embed = new EmbedBuilder().setColor(nav.SECTION_COLOR).setDescription(part);
     if (index === 0) {
-      if (section.title) embed.setTitle(section.title);
+      if (section.title) embed.setTitle(emojis.resolve(section.title));
       if (icon) embed.setThumbnail(icon);
     }
     return embed;
@@ -228,6 +233,31 @@ async function start() {
   await guild.roles.fetch().catch(() => {});
   await guild.channels.fetch().catch(() => {});
 
+  // Эмодзи: собираем со всех серверов бота и из emojis.json
+  await emojis.refresh(client, { force: true });
+  console.log(`  Эмодзи в базе: ${emojis.size()}`);
+
+  if (!botMember.permissions.has(PermissionFlagsBits.UseExternalEmojis)) {
+    console.log('  [!] У бота нет права «Использовать внешние эмодзи».');
+    console.log('      Эмодзи с других серверов не отобразятся — включи право в настройках роли бота.');
+    console.log('');
+  }
+
+  const unknown = new Set();
+  for (const section of Object.values(nav.SECTIONS)) {
+    for (const name of emojis.missing(section?.text)) unknown.add(name);
+  }
+  if (unknown.size > 0) {
+    console.log(`  [i] Эмодзи не найдены: ${[...unknown].map((n) => ':' + n + ':').join(', ')}`);
+    console.log('      Добавь их ID в emojis.json или пригласи бота на сервер с ними.');
+    console.log('');
+  }
+
+  // Раз в 10 минут подхватываем новые эмодзи
+  setInterval(() => {
+    emojis.refresh(client, { force: true }).catch(() => {});
+  }, 10 * 60 * 1000).unref?.();
+
   const role = guild.roles.cache.get(ROLE_ID);
 
   if (!role) {
@@ -290,6 +320,11 @@ client.on('channelCreate', async (channel) => {
 });
 
 client.on('error', (err) => console.log(`  [!] Ошибка: ${err.message}`));
+
+// Появился новый сервер — сразу подтягиваем его эмодзи
+client.on('guildCreate', () => {
+  emojis.refresh(client, { force: true }).catch(() => {});
+});
 
 // ---------------------------------------------------------------------------
 // Обработка слеш-команд

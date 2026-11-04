@@ -34,6 +34,13 @@
   .status.err { color:#f08a8a; }
   .counter { font-size:11px; color:var(--dim); text-align:right; margin-top:2px; }
   .hint { color:var(--dim); font-size:12px; margin-top:10px; }
+  .emoji-search { margin-bottom:10px; }
+  .emoji-list { display:flex; flex-wrap:wrap; gap:6px; max-height:190px; overflow:auto; padding:2px; }
+  .chip { background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:14px; padding:4px 10px; font-size:12px; cursor:pointer; font-family:ui-monospace,Consolas,monospace; }
+  .chip:hover { border-color:var(--accent); background:#3a3c42; }
+  .chip img { vertical-align:-3px; margin-right:5px; }
+  .emoji-note { font-size:12px; color:var(--dim); margin-top:8px; }
+  .emoji-note b { color:var(--text); }
 </style>
 </head>
 <body>
@@ -64,6 +71,18 @@
     <div class="hint">Картинки лучше класть в папку <b>assets</b> репозитория и вставлять ссылку вида <b>https://raw.githubusercontent.com/...</b>. Дискордовские ссылки истекают.</div>
   </div>
 
+  <div class="card">
+    <h2>Эмодзи</h2>
+    <div class="row emoji-search">
+      <input type="text" id="emojiFilter" placeholder="Поиск эмодзи по названию...">
+    </div>
+    <div class="emoji-list" id="emojiList"></div>
+    <div class="emoji-note">
+      Нажми на эмодзи — в поле, где стоял курсор, вставится <b>:название:</b>. Бот сам превратит это
+      в картинку, даже если эмодзи с другого сервера. Работает в текстах и в поле «Эмодзи».
+    </div>
+  </div>
+
   <div id="sections"></div>
 </main>
 
@@ -83,11 +102,118 @@ async function load() {
   document.getElementById('color').value = state.color || '#262B64';
   document.getElementById('bannerUrl').value = state.bannerUrl || '';
   renderSections();
+  loadEmojis();
 }
+
+// ---------------------------------------------------------------------------
+// Эмодзи
+// ---------------------------------------------------------------------------
+let allEmojis = [];
+let lastField = null;
+
+function rememberField(event) {
+  const el = event.target;
+  // Запоминаем только поля разделов, чтобы поиск по эмодзи их не перебивал
+  if (el.dataset && el.dataset.field) lastField = el;
+}
+
+document.addEventListener('focusin', rememberField);
+document.addEventListener('input', rememberField);
+
+async function loadEmojis() {
+  const list = document.getElementById('emojiList');
+  list.textContent = 'Загружаю...';
+
+  try {
+    const res = await fetch('/api/emojis');
+    const data = await res.json();
+
+    if (!data.ok) {
+      list.textContent = '';
+      const err = document.createElement('div');
+      err.className = 'emoji-note';
+      err.textContent = 'Не удалось получить список: ' + data.error;
+      list.appendChild(err);
+      return;
+    }
+
+    allEmojis = data.emojis || [];
+    renderEmojiList('');
+  } catch (err) {
+    list.textContent = 'Ошибка: ' + err.message;
+  }
+}
+
+function renderEmojiList(filter) {
+  const host = document.getElementById('emojiList');
+  host.innerHTML = '';
+
+  const needle = filter.trim().toLowerCase();
+  const found = allEmojis.filter((e) => !needle || e.name.toLowerCase().includes(needle));
+
+  if (found.length === 0) {
+    host.textContent = allEmojis.length === 0 ? 'Эмодзи не найдены.' : 'Ничего не найдено.';
+    return;
+  }
+
+  for (const emoji of found) {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.type = 'button';
+    chip.dataset.emoji = `:${emoji.name}:`;
+    chip.title = `${emoji.name} — ${emoji.animated ? 'анимированный, ' : ''}с сервера «${emoji.source}»`;
+    chip.textContent = `:${emoji.name}:`;
+    host.appendChild(chip);
+  }
+}
+
+function insertEmoji(text) {
+  let field = lastField;
+  if (!field || !field.isConnected) {
+    const active = document.activeElement;
+    if (active && active.dataset && active.dataset.field) field = active;
+  }
+
+  if (!field) {
+    navigator.clipboard?.writeText(text).catch(() => {});
+    setStatus(`Скопировано: ${text} — вставь в нужное поле`, 'ok');
+    return;
+  }
+
+  const start = field.selectionStart ?? field.value.length;
+  const end = field.selectionEnd ?? field.value.length;
+  field.value = field.value.slice(0, start) + text + field.value.slice(end);
+  field.focus();
+  field.selectionStart = field.selectionEnd = start + text.length;
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+  setStatus(`Вставлено ${text}`, 'ok');
+}
+
+const emojiListEl = document.getElementById('emojiList');
+
+// mousedown, а не click: preventDefault не даёт кнопке отобрать фокус у поля
+emojiListEl.addEventListener('mousedown', (event) => {
+  const chip = event.target.closest('.chip');
+  if (!chip) return;
+  event.preventDefault();
+  insertEmoji(chip.dataset.emoji);
+});
+
+// Активация с клавиатуры (Enter/Space) — detail === 0
+emojiListEl.addEventListener('click', (event) => {
+  const chip = event.target.closest('.chip');
+  if (!chip || event.detail !== 0) return;
+  insertEmoji(chip.dataset.emoji);
+});
+
+document.getElementById('emojiFilter').addEventListener('input', (event) => {
+  renderEmojiList(event.target.value);
+});
 
 function renderSections() {
   const host = document.getElementById('sections');
   host.innerHTML = '';
+  lastField = null; // старые поля удалены — курсор больше некуда вставлять
 
   Object.entries(state.sections).forEach(([key, section], index) => {
     const card = document.createElement('div');
