@@ -298,14 +298,12 @@ client.on('interactionCreate', async (interaction) => {
 
   try {
     if (interaction.commandName === 'навигация') {
+      const icon = interaction.guild?.iconURL({ size: 256 });
+
       const embed = new EmbedBuilder()
-        .setAuthor({ name: 'SLENDYWING' })
-        .setTitle('𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆')
-        .setDescription('Выбери раздел кнопкой ниже 👇')
+        .setAuthor({ name: '༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺', iconURL: icon ?? undefined })
         .setColor(SECTION_COLOR);
 
-      const icon = interaction.guild?.iconURL({ size: 256 });
-      if (icon) embed.setThumbnail(icon);
       if (BANNER_URL) embed.setImage(BANNER_URL);
 
       // Отвечаем невидимо, а карточку отправляем обычным сообщением —
