@@ -209,14 +209,20 @@ const ABOUT = `# ༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺
 > # 𝄢 📌 │ А также спасибо всем участникам с ролью <@&1293182326825685023> !`;
 
 const SECTIONS = {
-  rules: { label: 'Правила', emoji: '📚', title: '🕊️ПРАВИЛА🕊️', text: RULES },
+  rules: {
+    label: 'Правила',
+    emoji: '📚',
+    title: '🕊️ПРАВИЛА🕊️',
+    text: RULES,
+    image: 'https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/rules.jpg',
+  },
   violations: { label: 'Нарушения', emoji: '🚫', title: '🚫НАРУШЕНИЯ🚫', text: VIOLATIONS },
   roles: { label: 'Роли', emoji: '🎭', title: '🎭РОЛИ🎭', text: ROLES },
   about: { label: 'О SlendyWing', emoji: '❔', title: '❔О SLENDYWING❔', text: ABOUT },
 };
 
-// Цвет боковой полосы эмбеда (тёмно-серый, как у JuniorBot)
-const SECTION_COLOR = 0x232428;
+// Цвет боковой полосы эмбеда — rgb(38, 43, 100)
+const SECTION_COLOR = 0x262b64;
 
 // Баннер для карточки навигации.
 // Вставь прямую ссылку на картинку, например:

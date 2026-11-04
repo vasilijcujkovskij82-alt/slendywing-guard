@@ -139,6 +139,11 @@ async function sendSection(interaction, key) {
     return embed;
   });
 
+  // Картинка в самый низ раздела
+  if (section.image && embeds.length > 0) {
+    embeds[embeds.length - 1].setImage(section.image);
+  }
+
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   await interaction.editReply({ embeds: [embeds[0]] });
 
