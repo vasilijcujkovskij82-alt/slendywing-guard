@@ -1,9 +1,10 @@
 'use strict';
 
 const path = require('node:path');
-const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, EmbedBuilder } = require('discord.js');
 const nav = require('./navigation'); // тексты перечитываются из content.json на лету
 const emojis = require('./emojis');  // :name: -> <:name:id> для эмодзи с других серверов
+const buttons = require('./buttons'); // кнопки главной карточки и разделов
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -113,24 +114,7 @@ function chunkText(text, size = 1900) {
 }
 
 function navRows() {
-  const entries = Object.entries(nav.SECTIONS).slice(0, 20); // максимум 4 ряда по 5
-  const rows = [];
-
-  for (let i = 0; i < entries.length; i += 5) {
-    const row = new ActionRowBuilder();
-    for (const [key, section] of entries.slice(i, i + 5)) {
-      const button = new ButtonBuilder()
-        .setCustomId(`nav:${key}`)
-        .setLabel(`│ ${String(section.label || key).toUpperCase()}`)
-        .setStyle(ButtonStyle.Secondary);
-      const emoji = emojis.forButton(section.emoji);
-      if (emoji) button.setEmoji(emoji);
-      row.addComponents(button);
-    }
-    rows.push(row);
-  }
-
-  return rows;
+  return buttons.navRows(nav.SECTIONS);
 }
 
 async function sendSection(interaction, key) {
@@ -168,7 +152,10 @@ async function sendSection(interaction, key) {
     embeds[embeds.length - 1].setImage(section.image);
   }
 
-  await interaction.reply({ embeds: [embeds[0]], flags: MessageFlags.Ephemeral });
+  // Дополнительные кнопки внутри раздела (например, «ДОСКА ПОЧЕТА» в «О SlendyWing»)
+  const extraRows = buttons.sectionRows(section, nav.SECTIONS);
+
+  await interaction.reply({ embeds: [embeds[0]], components: extraRows, flags: MessageFlags.Ephemeral });
 
   for (const embed of embeds.slice(1)) {
     await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });

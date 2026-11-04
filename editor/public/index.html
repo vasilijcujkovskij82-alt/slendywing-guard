@@ -238,6 +238,19 @@ function renderSections() {
         <textarea data-field="text" data-key="${key}">${escapeHtml(section.text || '')}</textarea>
         <div class="counter" data-counter="${key}">${(section.text || '').length} / 4096</div>
       </div>
+      <div class="grid">
+        <div class="row">
+          <label>Доп. кнопки: Название|ключ (несколько — через запятую)</label>
+          <input type="text" data-buttons="${key}" value="${escapeAttr(buttonsToText(section.buttons))}" placeholder="ДОСКА ПОЧЕТА|honor">
+        </div>
+        <div class="row">
+          <label>Показ на главной карточке</label>
+          <label style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px">
+            <input type="checkbox" data-hidden="${key}" ${section.hidden ? 'checked' : ''} style="width:auto">
+            скрыть с главной карточки
+          </label>
+        </div>
+      </div>
     `;
     host.appendChild(card);
   });
@@ -279,6 +292,24 @@ function escapeHtml(value) {
 }
 function escapeAttr(value) { return escapeHtml(value); }
 
+// "ДОСКА ПОЧЕТА|honor, Ещё|events" <-> [{label, target}]
+function buttonsToText(list) {
+  if (!Array.isArray(list)) return '';
+  return list.map((b) => `${b.label || ''}|${b.target || ''}`).join(', ');
+}
+
+function textToButtons(text) {
+  return String(text || '')
+    .split(/[\n,]/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [label, target] = part.split('|').map((s) => (s || '').trim());
+      return { label: label || target || '', target: target || '' };
+    })
+    .filter((b) => b.target);
+}
+
 document.getElementById('addBtn').addEventListener('click', () => {
   const key = (prompt('Ключ нового раздела (латиницей, без пробелов), например: events') || '').trim().toLowerCase();
   if (!key) return;
@@ -298,6 +329,22 @@ document.getElementById('addBtn').addEventListener('click', () => {
 document.getElementById('saveBtn').addEventListener('click', async () => {
   state.color = document.getElementById('color').value.trim() || '#262B64';
   state.bannerUrl = document.getElementById('bannerUrl').value.trim();
+
+  // Доп. кнопки и скрытие с главной карточки
+  document.querySelectorAll('[data-buttons]').forEach((input) => {
+    const key = input.dataset.buttons;
+    if (!state.sections[key]) return;
+    const list = textToButtons(input.value);
+    if (list.length) state.sections[key].buttons = list;
+    else delete state.sections[key].buttons;
+  });
+
+  document.querySelectorAll('[data-hidden]').forEach((box) => {
+    const key = box.dataset.hidden;
+    if (!state.sections[key]) return;
+    if (box.checked) state.sections[key].hidden = true;
+    else delete state.sections[key].hidden;
+  });
 
   for (const section of Object.values(state.sections)) {
     if ((section.text || '').length > 4096) {
