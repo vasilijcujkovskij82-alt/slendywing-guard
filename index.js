@@ -111,13 +111,24 @@ function chunkText(text, size = 1900) {
   return out;
 }
 
-function navRow() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('nav:rules').setEmoji('📚').setLabel('│ ПРАВИЛА').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('nav:violations').setEmoji('🚫').setLabel('│ НАРУШЕНИЯ').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('nav:roles').setEmoji('🎭').setLabel('│ РОЛИ').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('nav:about').setEmoji('❔').setLabel('│ O SLENDYWING').setStyle(ButtonStyle.Secondary)
-  );
+function navRows() {
+  const entries = Object.entries(SECTIONS).slice(0, 20); // максимум 4 ряда по 5
+  const rows = [];
+
+  for (let i = 0; i < entries.length; i += 5) {
+    const row = new ActionRowBuilder();
+    for (const [key, section] of entries.slice(i, i + 5)) {
+      const button = new ButtonBuilder()
+        .setCustomId(`nav:${key}`)
+        .setLabel(`│ ${String(section.label || key).toUpperCase()}`)
+        .setStyle(ButtonStyle.Secondary);
+      if (section.emoji) button.setEmoji(section.emoji);
+      row.addComponents(button);
+    }
+    rows.push(row);
+  }
+
+  return rows;
 }
 
 async function sendSection(interaction, key) {
@@ -309,7 +320,7 @@ client.on('interactionCreate', async (interaction) => {
       // Отвечаем невидимо, а карточку отправляем обычным сообщением —
       // так над ботом не появляется «использовал /навигацию»
       await interaction.reply({ content: 'Навигация отправлена 👇', flags: MessageFlags.Ephemeral });
-      await interaction.channel.send({ embeds: [embed], components: [navRow()] });
+      await interaction.channel.send({ embeds: [embed], components: navRows() });
       return;
     }
 
