@@ -2,7 +2,7 @@
 
 const path = require('node:path');
 const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { SECTIONS, BANNER_URL, SECTION_COLOR } = require('./navigation');
+const nav = require('./navigation'); // тексты перечитываются из content.json на лету
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -112,7 +112,7 @@ function chunkText(text, size = 1900) {
 }
 
 function navRows() {
-  const entries = Object.entries(SECTIONS).slice(0, 20); // максимум 4 ряда по 5
+  const entries = Object.entries(nav.SECTIONS).slice(0, 20); // максимум 4 ряда по 5
   const rows = [];
 
   for (let i = 0; i < entries.length; i += 5) {
@@ -132,7 +132,7 @@ function navRows() {
 }
 
 async function sendSection(interaction, key) {
-  const section = SECTIONS[key];
+  const section = nav.SECTIONS[key];
   if (!section) return;
 
   let text = section.text;
@@ -150,7 +150,7 @@ async function sendSection(interaction, key) {
   const icon = interaction.guild?.iconURL({ size: 256 }) ?? null;
 
   const embeds = parts.map((part, index) => {
-    const embed = new EmbedBuilder().setColor(SECTION_COLOR).setDescription(part);
+    const embed = new EmbedBuilder().setColor(nav.SECTION_COLOR).setDescription(part);
     if (index === 0) {
       if (section.title) embed.setTitle(section.title);
       if (icon) embed.setThumbnail(icon);
@@ -313,9 +313,9 @@ client.on('interactionCreate', async (interaction) => {
 
       const embed = new EmbedBuilder()
         .setAuthor({ name: '༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺', iconURL: icon ?? undefined })
-        .setColor(SECTION_COLOR);
+        .setColor(nav.SECTION_COLOR);
 
-      if (BANNER_URL) embed.setImage(BANNER_URL);
+      if (nav.BANNER_URL) embed.setImage(nav.BANNER_URL);
 
       // Отвечаем невидимо, а карточку отправляем обычным сообщением —
       // так над ботом не появляется «использовал /навигацию»

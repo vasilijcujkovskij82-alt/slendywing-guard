@@ -1,7 +1,10 @@
 'use strict';
 
 // Все тексты навигации лежат в content.json — их можно менять через редактор
-// (файл "Редактор.bat" на рабочем столе).
+// (ярлык "EDITOR - SlendyWing" на рабочем столе).
+//
+// Файл перечитывается на лету: если content.json изменился, бот подхватит
+// новый текст без перезапуска.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,11 +22,24 @@ const FALLBACK = {
   },
 };
 
-function load() {
+let cached = null;
+let cachedMtimeMs = -1;
+
+function readFile() {
+  let mtimeMs = -1;
   try {
-    const raw = fs.readFileSync(CONTENT_PATH, 'utf8');
-    const data = JSON.parse(raw);
-    if (!data || typeof data !== 'object' || !data.sections) return FALLBACK;
+    mtimeMs = fs.statSync(CONTENT_PATH).mtimeMs;
+  } catch {
+    return FALLBACK;
+  }
+
+  if (cached && mtimeMs === cachedMtimeMs) return cached;
+
+  try {
+    const data = JSON.parse(fs.readFileSync(CONTENT_PATH, 'utf8'));
+    if (!data || typeof data !== 'object' || !data.sections) throw new Error('нет поля sections');
+    cached = data;
+    cachedMtimeMs = mtimeMs;
     return data;
   } catch (err) {
     console.log(`  [!] content.json не прочитан (${err.message}), использую заглушку.`);
@@ -31,18 +47,23 @@ function load() {
   }
 }
 
-const data = load();
-
-const SECTIONS = data.sections;
-
-// Баннер карточки навигации (полноразмерная картинка снизу)
-const BANNER_URL = typeof data.bannerUrl === 'string' ? data.bannerUrl : '';
-
-// Цвет боковой полосы, в content.json хранится как "#262B64"
-const SECTION_COLOR = (() => {
-  const value = String(data.color || '#262B64').replace('#', '');
-  const parsed = Number.parseInt(value, 16);
+function parseColor(value) {
+  const hex = String(value || '#262B64').replace('#', '');
+  const parsed = Number.parseInt(hex, 16);
   return Number.isNaN(parsed) ? 0x262b64 : parsed;
-})();
+}
 
-module.exports = { SECTIONS, BANNER_URL, SECTION_COLOR, CONTENT_PATH };
+// Геттеры читают файл при каждом обращении — правки в редакторе применяются сразу
+module.exports = {
+  CONTENT_PATH,
+  get SECTIONS() {
+    return readFile().sections;
+  },
+  get BANNER_URL() {
+    const value = readFile().bannerUrl;
+    return typeof value === 'string' ? value : '';
+  },
+  get SECTION_COLOR() {
+    return parseColor(readFile().color);
+  },
+};
