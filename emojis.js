@@ -115,6 +115,27 @@ function get(name) {
   return cache.get(normalizeName(name)) || null;
 }
 
+const FULL_RE = /<(a?):([a-zA-Z0-9_]{2,32}):(\d+)>/g;
+
+/**
+ * Учит бота эмодзи из готовой записи <:name:id>.
+ * Так :name: начинает работать даже для эмодзи с чужих серверов —
+ * достаточно один раз вставить полный вид.
+ */
+function learn(text) {
+  if (typeof text !== 'string' || text.length === 0) return 0;
+
+  let added = 0;
+  for (const match of text.matchAll(FULL_RE)) {
+    const [, animated, name, id] = match;
+    const key = normalizeName(name);
+    if (cache.has(key)) continue;
+    cache.set(key, { id, name, animated: animated === 'a' });
+    added++;
+  }
+  return added;
+}
+
 /**
  * Заменяет :name: на <:name:id>, если такой эмодзи известен.
  * Не трогает уже готовые <:name:id>, ссылки и прочие <...>.
@@ -125,7 +146,10 @@ function resolve(text) {
   return text
     .split(/(<[^>]*>)/) // чётные куски — обычный текст, нечётные — уже готовые <...>
     .map((chunk, index) => {
-      if (index % 2 === 1) return chunk;
+      if (index % 2 === 1) {
+        learn(chunk); // запоминаем имена готовых эмодзи
+        return chunk;
+      }
       return chunk.replace(/:([a-zA-Z0-9_]{2,32}):/g, (whole, name) => {
         const emoji = cache.get(normalizeName(name));
         if (!emoji) return whole;
@@ -179,4 +203,4 @@ function names() {
   return [...cache.keys()].sort();
 }
 
-module.exports = { refresh, resolve, forButton, missing, get, size, names, MAP_PATH };
+module.exports = { refresh, resolve, forButton, missing, get, learn, size, names, MAP_PATH };

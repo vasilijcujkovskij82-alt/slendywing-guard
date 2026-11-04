@@ -243,6 +243,11 @@ async function start() {
     console.log('');
   }
 
+  // Учимся эмодзи из готовых записей <:name:id> прямо из текстов
+  for (const section of Object.values(nav.SECTIONS)) {
+    emojis.learn(section?.text);
+  }
+
   const unknown = new Set();
   for (const section of Object.values(nav.SECTIONS)) {
     for (const name of emojis.missing(section?.text)) unknown.add(name);
