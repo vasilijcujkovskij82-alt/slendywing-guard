@@ -1,7 +1,8 @@
 'use strict';
 
 const path = require('node:path');
-const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { SECTIONS, BANNER_URL } = require('./navigation');
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -78,11 +79,59 @@ async function unblockRole(channel) {
 // Слеш-команды
 // ---------------------------------------------------------------------------
 const COMMANDS = [
+  { name: 'навигация', description: 'Навигация по серверу: правила, нарушения, роли, о сервере' },
   { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
   { name: 'channels', description: 'Список голосовых каналов категории и их состояние' },
   { name: 'block', description: 'Закрыть роль Нарушитель во всех каналах категории' },
   { name: 'unblock', description: 'Снять запрет с каналов категории' },
 ];
+
+// ---------------------------------------------------------------------------
+// Навигация: меню и вывод разделов
+// ---------------------------------------------------------------------------
+function chunkText(text, size = 1900) {
+  const out = [];
+  let current = '';
+
+  for (const line of text.split('\n')) {
+    const candidate = current ? `${current}\n${line}` : line;
+    if (candidate.length > size && current) {
+      out.push(current);
+      current = line;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) out.push(current);
+  return out;
+}
+
+function navRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('nav:rules').setEmoji('📚').setLabel('│ ПРАВИЛА').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('nav:violations').setEmoji('🚫').setLabel('│ НАРУШЕНИЯ').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('nav:roles').setEmoji('🎭').setLabel('│ РОЛИ').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('nav:about').setEmoji('❔').setLabel('│ O SLENDYWING').setStyle(ButtonStyle.Secondary)
+  );
+}
+
+async function sendSection(interaction, key) {
+  const section = SECTIONS[key];
+  if (!section) return;
+
+  let text = section.text;
+  if (key === 'about') {
+    text = text.replace('{MEMBERS}', String(interaction.guild ? interaction.guild.memberCount : '—'));
+  }
+
+  const parts = chunkText(text);
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  await interaction.editReply({ content: parts[0] });
+
+  for (const part of parts.slice(1)) {
+    await interaction.followUp({ content: part, flags: MessageFlags.Ephemeral });
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Ищем сервер: по ID, потом по названию, потом единственный доступный
@@ -137,6 +186,11 @@ async function start() {
   }
 
   const botMember = await guild.members.fetchMe();
+
+  // Гарантируем, что кэш ролей и каналов заполнен
+  await guild.roles.fetch().catch(() => {});
+  await guild.channels.fetch().catch(() => {});
+
   const role = guild.roles.cache.get(ROLE_ID);
 
   if (!role) {
@@ -160,8 +214,8 @@ async function start() {
 
   // Регистрируем слеш-команды на этом сервере
   try {
-    await client.application.commands.set(COMMANDS, guild.id);
-    console.log('  Команды: /status /channels /block /unblock');
+    const registered = await client.application.commands.set(COMMANDS, guild.id);
+    console.log(`  Команды (${registered.size}): ${registered.map((c) => '/' + c.name).join(' ')}`);
   } catch (err) {
     console.log(`  [!] Не удалось зарегистрировать команды: ${err.message}`);
   }
@@ -204,9 +258,32 @@ client.on('error', (err) => console.log(`  [!] Ошибка: ${err.message}`));
 // Обработка слеш-команд
 // ---------------------------------------------------------------------------
 client.on('interactionCreate', async (interaction) => {
+  if (interaction.isButton()) {
+    if (!interaction.customId.startsWith('nav:')) return;
+    try {
+      await sendSection(interaction, interaction.customId.slice(4));
+    } catch (err) {
+      console.log(`  [!] Ошибка навигации: ${err.message}`);
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   try {
+    if (interaction.commandName === 'навигация') {
+      const embed = new EmbedBuilder()
+        .setAuthor({ name: 'SLENDYWING' })
+        .setTitle('𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆')
+        .setDescription('Выбери раздел кнопкой ниже 👇')
+        .setColor(0x1e3a8a);
+
+      if (BANNER_URL) embed.setImage(BANNER_URL);
+
+      await interaction.reply({ embeds: [embed], components: [navRow()] });
+      return;
+    }
+
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
         content: 'Нужны права «Управление сервером».',
