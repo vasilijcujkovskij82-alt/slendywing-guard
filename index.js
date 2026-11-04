@@ -79,7 +79,12 @@ async function unblockRole(channel) {
 // Слеш-команды
 // ---------------------------------------------------------------------------
 const COMMANDS = [
-  { name: 'навигация', description: 'Навигация по серверу: правила, нарушения, роли, о сервере' },
+  {
+    name: 'навигация',
+    description: 'Отправить навигацию по серверу в этот канал',
+    // '0' — команду видят только администраторы
+    defaultMemberPermissions: '0',
+  },
   { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
   { name: 'channels', description: 'Список голосовых каналов категории и их состояние' },
   { name: 'block', description: 'Закрыть роль Нарушитель во всех каналах категории' },
@@ -147,8 +152,7 @@ async function sendSection(interaction, key) {
     embeds[embeds.length - 1].setImage(section.image);
   }
 
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-  await interaction.editReply({ embeds: [embeds[0]] });
+  await interaction.reply({ embeds: [embeds[0]], flags: MessageFlags.Ephemeral });
 
   for (const embed of embeds.slice(1)) {
     await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
@@ -304,7 +308,10 @@ client.on('interactionCreate', async (interaction) => {
       if (icon) embed.setThumbnail(icon);
       if (BANNER_URL) embed.setImage(BANNER_URL);
 
-      await interaction.reply({ embeds: [embed], components: [navRow()] });
+      // Отвечаем невидимо, а карточку отправляем обычным сообщением —
+      // так над ботом не появляется «использовал /навигацию»
+      await interaction.reply({ content: 'Навигация отправлена 👇', flags: MessageFlags.Ephemeral });
+      await interaction.channel.send({ embeds: [embed], components: [navRow()] });
       return;
     }
 
