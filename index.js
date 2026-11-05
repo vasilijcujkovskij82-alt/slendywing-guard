@@ -56,6 +56,17 @@ async function blockRole(channel) {
 // ---------------------------------------------------------------------------
 // Вспомогательные функции
 // ---------------------------------------------------------------------------
+
+// Discord иногда отвечает очень долго (или не отвечает) — не даём запуску зависнуть
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`${label}: нет ответа ${Math.round(ms / 1000)} с`)), ms);
+      timer.unref?.();
+    }),
+  ]);
+}
 function tempVoiceChannels(guild) {
   return guild.channels.cache.filter(
     (ch) =>
@@ -214,17 +225,22 @@ async function start() {
     console.log('');
   }
 
-  const botMember = await guild.members.fetchMe();
+  let botMember = null;
+  try {
+    botMember = await withTimeout(guild.members.fetchMe(), 15000, 'бот на сервере');
+  } catch (err) {
+    console.log(`  [!] ${err.message} — продолжаю запуск.`);
+  }
 
-  // Гарантируем, что кэш ролей и каналов заполнен
-  await guild.roles.fetch().catch(() => {});
-  await guild.channels.fetch().catch(() => {});
+  // Гарантируем, что кэш ролей и каналов заполнен (но не ждём вечно)
+  await withTimeout(guild.roles.fetch(), 15000, 'роли').catch(() => {});
+  await withTimeout(guild.channels.fetch(), 15000, 'каналы').catch(() => {});
 
   // Эмодзи: собираем со всех серверов бота и из emojis.json
-  await emojis.refresh(client, { force: true });
+  await withTimeout(emojis.refresh(client, { force: true }), 20000, 'эмодзи').catch(() => {});
   console.log(`  Эмодзи в базе: ${emojis.size()}`);
 
-  if (!botMember.permissions.has(PermissionFlagsBits.UseExternalEmojis)) {
+  if (botMember && !botMember.permissions.has(PermissionFlagsBits.UseExternalEmojis)) {
     console.log('  [!] У бота нет права «Использовать внешние эмодзи».');
     console.log('      Эмодзи с других серверов не отобразятся — включи право в настройках роли бота.');
     console.log('');

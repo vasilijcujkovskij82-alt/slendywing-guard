@@ -86,8 +86,10 @@ async function refresh(client, { force = false } = {}) {
 
   // 1. Эмодзи приложения — работают везде, где есть бот
   try {
-    const appEmojis = await client.application.emojis.fetch();
-    for (const emoji of appEmojis.values()) addEmoji(map, emoji);
+    if (client.application?.emojis) {
+      const appEmojis = await client.application.emojis.fetch();
+      for (const emoji of appEmojis.values()) addEmoji(map, emoji);
+    }
   } catch (err) {
     console.log(`  [!] Эмодзи приложения не получены: ${err.message}`);
   }
@@ -95,11 +97,13 @@ async function refresh(client, { force = false } = {}) {
   // 2. Эмодзи серверов, где стоит бот
   for (const guild of client.guilds.cache.values()) {
     try {
+      // У недоступных (partial) серверов emojis может не быть
+      if (!guild || !guild.emojis) continue;
       if (guild.emojis.cache.size === 0) await guild.emojis.fetch();
+      for (const emoji of guild.emojis.cache.values()) addEmoji(map, emoji);
     } catch {
       // нет доступа — пропускаем
     }
-    for (const emoji of guild.emojis.cache.values()) addEmoji(map, emoji);
   }
 
   // 3. Ручные соответствия из emojis.json — главнее всего
