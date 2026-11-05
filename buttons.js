@@ -1,22 +1,44 @@
 'use strict';
 
 // Кнопки навигации: главная карточка и дополнительные кнопки внутри разделов.
+//
+// Подпись строится так:  ༻<эмодзи>│ НАЗВАНИЕ
+// Эмодзи ставится внутрь подписи, а не в отдельное поле кнопки —
+// так он стоит ровно между «༻» и «│», как в оформлении сервера.
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const emojis = require('./emojis');
 
-function makeButton({ customId, label, emoji }) {
+// Кастомные эмодзи (<:name:id> или :name:) внутрь подписи не поставить —
+// Discord рисует их только отдельным полем кнопки.
+function isCustomEmoji(value) {
+  const text = String(value || '').trim();
+  return /^<a?:[^>]+>$/.test(text) || /^:[a-zA-Z0-9_]{2,32}:$/.test(text);
+}
+
+function buildLabel(label, emoji) {
   const text = String(label || '').toUpperCase();
-  // Если в названии уже есть разделитель «│», оставляем как есть
-  const caption = text.includes('│') ? text : `│ ${text}`;
+  if (text.includes('│')) return { caption: text, emoji: null };
+
+  if (emoji && !isCustomEmoji(emoji)) {
+    return { caption: `༻${String(emoji).trim()}│ ${text}`, emoji: null };
+  }
+
+  return { caption: `༻│ ${text}`, emoji: emoji || null };
+}
+
+function makeButton({ customId, label, emoji }) {
+  const { caption, emoji: fallback } = buildLabel(label, emoji);
 
   const button = new ButtonBuilder()
     .setCustomId(customId)
     .setLabel(caption)
     .setStyle(ButtonStyle.Secondary);
 
-  const parsed = emojis.forButton(emoji);
-  if (parsed) button.setEmoji(parsed);
+  if (fallback) {
+    const parsed = emojis.forButton(fallback);
+    if (parsed) button.setEmoji(parsed);
+  }
 
   return button;
 }
@@ -50,14 +72,16 @@ function sectionRows(section, sections) {
     .slice(0, 5)
     .map((button) => {
       if (button.target.startsWith('url:')) {
-        const linkText = String(button.label || 'ССЫЛКА').toUpperCase();
+        const { caption, emoji: fallback } = buildLabel(button.label || 'ССЫЛКА', button.emoji);
         const link = new ButtonBuilder()
-          .setLabel(linkText.includes('│') ? linkText : `│ ${linkText}`)
+          .setLabel(caption)
           .setStyle(ButtonStyle.Link)
           .setURL(button.target.slice(4));
 
-        const parsed = emojis.forButton(button.emoji);
-        if (parsed) link.setEmoji(parsed);
+        if (fallback) {
+          const parsed = emojis.forButton(fallback);
+          if (parsed) link.setEmoji(parsed);
+        }
         return link;
       }
 
@@ -71,4 +95,4 @@ function sectionRows(section, sections) {
   return buttons.length ? [new ActionRowBuilder().addComponents(buttons)] : [];
 }
 
-module.exports = { navRows, sectionRows };
+module.exports = { navRows, sectionRows, buildLabel };
