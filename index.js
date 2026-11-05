@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, EmbedBuilder, Routes } = require('discord.js');
 const nav = require('./navigation'); // тексты перечитываются из content.json на лету
 const emojis = require('./emojis');  // :name: -> <:name:id> для эмодзи с других серверов
 const buttons = require('./buttons'); // кнопки главной карточки и разделов
@@ -67,6 +67,49 @@ function withTimeout(promise, ms, label) {
     }),
   ]);
 }
+// Количество участников: держим актуальным, а не «на момент запуска».
+// Discord отдаёт member_count в GET /guilds/:id — спрашиваем при каждом показе
+// раздела, но не чаще раза в 15 секунд (кэш).
+const memberCountCache = new Map(); // guildId -> { count, at }
+
+async function fetchMemberCount(guild) {
+  if (!guild) return null;
+
+  const cached = memberCountCache.get(guild.id);
+  const now = Date.now();
+  if (cached && now - cached.at < 15000) return cached.count;
+
+  try {
+    // with_counts=true — Discord отдаёт approximate_member_count (то же число,
+    // что показывает сам Discord и джунипер в {{guild.memberCount}})
+    const data = await withTimeout(
+      client.rest.get(Routes.guild(guild.id), { query: new URLSearchParams({ with_counts: 'true' }) }),
+      5000,
+      'количество участников'
+    );
+    const raw = data?.approximate_member_count ?? data?.member_count;
+    const count = typeof raw === 'number' ? raw : guild.memberCount;
+    memberCountCache.set(guild.id, { count, at: now });
+    return count;
+  } catch {
+    // Discord не ответил — показываем последнее известное значение
+    return cached ? cached.count : guild.memberCount ?? null;
+  }
+}
+
+// {MEMBERS} из старых текстов и {{guild.memberCount}} — как в других ботах
+const MEMBER_PLACEHOLDER = /\{MEMBERS\}|\{\{\s*guild\.memberCount\s*\}\}|\{\{\s*memberCount\s*\}\}|\{\{\s*members\s*\}\}/i;
+
+function applyMemberCount(text, count) {
+  if (!text) return text;
+  const value = count == null ? '—' : String(count);
+  return text
+    .replace(/\{MEMBERS\}/g, value)
+    .replace(/\{\{\s*guild\.memberCount\s*\}\}/gi, value)
+    .replace(/\{\{\s*memberCount\s*\}\}/gi, value)
+    .replace(/\{\{\s*members\s*\}\}/gi, value);
+}
+
 function tempVoiceChannels(guild) {
   return guild.channels.cache.filter(
     (ch) =>
@@ -132,9 +175,11 @@ async function sendSection(interaction, key) {
   const section = nav.SECTIONS[key];
   if (!section) return;
 
-  let text = section.text;
-  if (key === 'about') {
-    text = text.replace('{MEMBERS}', String(interaction.guild ? interaction.guild.memberCount : '—'));
+  let text = section.text || '';
+
+  // Счётчик участников — всегда свежий (пришёл/ушёл кто-то — число новое)
+  if (MEMBER_PLACEHOLDER.test(text)) {
+    text = applyMemberCount(text, await fetchMemberCount(interaction.guild));
   }
 
   // Если у раздела есть отдельный заголовок — убираем первую строку текста,
@@ -333,6 +378,12 @@ client.on('error', (err) => console.log(`  [!] Ошибка: ${err.message}`));
 client.on('guildCreate', () => {
   emojis.refresh(client, { force: true }).catch(() => {});
 });
+
+// Кто-то пришёл или ушёл — счётчик участников больше не актуален.
+// (Срабатывает, если у бота включено право «Участники сервера»;
+// без него число всё равно обновится при следующем показе раздела.)
+client.on('guildMemberAdd', (member) => memberCountCache.delete(member.guild.id));
+client.on('guildMemberRemove', (member) => memberCountCache.delete(member.guild.id));
 
 // ---------------------------------------------------------------------------
 // Обработка слеш-команд
