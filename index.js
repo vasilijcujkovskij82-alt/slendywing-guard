@@ -141,6 +141,12 @@ const COMMANDS = [
     // '0' — команду видят только администраторы
     defaultMemberPermissions: '0',
   },
+  {
+    // Полная копия /навигация — для проверок, чтобы не трогать основную команду
+    name: 'тест',
+    description: 'Тестовая копия /навигация — отправляет такую же карточку',
+    defaultMemberPermissions: '0',
+  },
   { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
   { name: 'channels', description: 'Список голосовых каналов категории и их состояние' },
   { name: 'block', description: 'Закрыть роль Нарушитель во всех каналах категории' },
@@ -402,7 +408,7 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   try {
-    if (interaction.commandName === 'навигация') {
+    if (interaction.commandName === 'навигация' || interaction.commandName === 'тест') {
       const icon = interaction.guild?.iconURL({ size: 256 });
 
       const embed = new EmbedBuilder()
