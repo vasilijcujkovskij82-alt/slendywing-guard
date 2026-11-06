@@ -463,9 +463,9 @@ client.on('interactionCreate', async (interaction) => {
 
   // Селект цветов в меню ролей
   if (interaction.isStringSelectMenu()) {
-    if (interaction.customId === 'rolecolor') {
+    if (interaction.customId.startsWith('rolecolor:')) {
       try {
-        await roles.pickColor(interaction);
+        await roles.pickColor(interaction, interaction.customId.slice(10));
       } catch (err) {
         console.log(`  [!] Ошибка выбора цвета: ${err.message}`);
       }

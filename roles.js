@@ -121,7 +121,7 @@ function categoryRows(interaction, key) {
   const options = Array.isArray(cat.options) ? cat.options : [];
   if (options.length) {
     const menu = new StringSelectMenuBuilder()
-      .setCustomId('rolecolor')
+      .setCustomId(`rolecolor:${key}`)
       .setPlaceholder(String(cat.placeholder || 'Выберите роль').slice(0, 150))
       .addOptions(
         options.slice(0, 25).map((option) =>
@@ -225,9 +225,9 @@ async function toggleRole(interaction, roleId) {
 // ---------------------------------------------------------------------------
 // Цвета
 // ---------------------------------------------------------------------------
-async function pickColor(interaction) {
+async function pickColor(interaction, key = 'colors') {
   const data = read();
-  const cat = data.categories?.colors;
+  const cat = data.categories?.[key];
   const member = interaction.member;
 
   if (!cat || !member?.roles?.cache) return;
