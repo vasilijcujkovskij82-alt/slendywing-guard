@@ -10,6 +10,7 @@ const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const CONTENT_PATH = path.join(ROOT, 'content.json');
+const ROLES_PATH = path.join(ROOT, 'roles.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = 3060;
 
@@ -115,6 +116,26 @@ function runGit(args) {
   };
 }
 
+// Сохраняет файлы, коммитит и отправляет на GitHub.
+// Render подхватит изменения по workflow deploy.yml.
+function commitAndPush(files, message) {
+  const add = runGit(['add', ...files]);
+  if (!add.ok) return { ok: false, error: add.out };
+
+  const commit = runGit(['commit', '-m', message]);
+  const nothingToCommit = !commit.ok && /nothing to commit/i.test(commit.out);
+
+  if (!commit.ok && !nothingToCommit) return { ok: false, error: commit.out };
+  if (nothingToCommit) {
+    return { ok: true, message: 'Сохранено. Изменений нет — деплой не нужен.' };
+  }
+
+  const push = runGit(['push']);
+  if (!push.ok) return { ok: false, error: push.out };
+
+  return { ok: true, message: 'Сохранено и отправлено. Render обновится через ~1–2 минуты.' };
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -163,28 +184,52 @@ const server = http.createServer((req, res) => {
         return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
       }
 
-      const add = runGit(['add', 'content.json']);
-      if (!add.ok) return send(res, 500, JSON.stringify({ ok: false, error: add.out }));
+      const result = commitAndPush(['content.json'], 'Update navigation texts via editor');
+      return send(res, result.ok ? 200 : 500, JSON.stringify(result));
+    });
 
-      const commit = runGit(['commit', '-m', 'Update navigation texts via editor']);
-      const nothingToCommit = !commit.ok && /nothing to commit/i.test(commit.out);
+    return;
+  }
 
-      if (!commit.ok && !nothingToCommit) {
-        return send(res, 500, JSON.stringify({ ok: false, error: commit.out }));
+  if (req.method === 'GET' && url.pathname === '/api/roles') {
+    try {
+      return send(res, 200, fs.readFileSync(ROLES_PATH, 'utf8'));
+    } catch (err) {
+      return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/roles') {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 2_000_000) req.destroy();
+    });
+
+    req.on('end', () => {
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Некорректный JSON' }));
       }
 
-      if (nothingToCommit) {
-        return send(res, 200, JSON.stringify({ ok: true, message: 'Сохранено. Изменений нет — деплой не нужен.' }));
+      if (!data || typeof data !== 'object' || !data.main || typeof data.main !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля main' }));
       }
 
-      const push = runGit(['push']);
-      if (!push.ok) return send(res, 500, JSON.stringify({ ok: false, error: push.out }));
+      if (!data.categories || typeof data.categories !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля categories' }));
+      }
 
-      return send(
-        res,
-        200,
-        JSON.stringify({ ok: true, message: 'Сохранено и отправлено. Render обновится через ~1–2 минуты.' })
-      );
+      try {
+        fs.writeFileSync(ROLES_PATH, JSON.stringify(data, null, 2), 'utf8');
+      } catch (err) {
+        return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+      }
+
+      const result = commitAndPush(['roles.json'], 'Update role menu via editor');
+      return send(res, result.ok ? 200 : 500, JSON.stringify(result));
     });
 
     return;

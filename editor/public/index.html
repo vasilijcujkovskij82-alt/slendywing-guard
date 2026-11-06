@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Редактор навигации — SlendyWing</title>
+<title>Редактор SlendyWing</title>
 <style>
   :root { --bg:#1e1f22; --panel:#2b2d31; --panel2:#313338; --line:#3f4147; --text:#e6e6e6; --dim:#9aa0a6; --accent:#5865f2; }
   * { box-sizing:border-box; }
@@ -17,9 +17,14 @@
   .btn.primary { background:var(--accent); border-color:var(--accent); font-weight:600; }
   .btn.primary:hover { background:#4752c4; }
   .btn.danger { color:#f08a8a; }
+  .tabs { display:flex; gap:4px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:3px; }
+  .tab { background:transparent; border:0; color:var(--dim); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+  .tab:hover { color:var(--text); }
+  .tab.active { background:var(--accent); color:#fff; font-weight:600; }
   main { max-width:980px; margin:0 auto; padding:20px; }
   .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
   .card h2 { margin:0 0 12px; font-size:14px; color:var(--dim); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  .card h3 { font-size:13px; color:var(--dim); margin:14px 0 8px; font-weight:600; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   label { display:block; font-size:12px; color:var(--dim); margin-bottom:4px; }
   input[type=text], textarea { width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:8px 10px; font-size:13px; font-family:inherit; }
@@ -41,36 +46,28 @@
   .chip img { vertical-align:-3px; margin-right:5px; }
   .emoji-note { font-size:12px; color:var(--dim); margin-top:8px; }
   .emoji-note b { color:var(--text); }
+  .mini { background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; }
+  .mini .row { margin-bottom:8px; }
+  .mini .btn { padding:6px 10px; font-size:12px; }
 </style>
 </head>
 <body>
 <header>
   <div>
-    <h1>Редактор навигации</h1>
+    <h1>Редактор SlendyWing</h1>
     <div class="sub">SlendyWing Guard · тексты команд</div>
   </div>
   <div class="spacer"></div>
+  <div class="tabs">
+    <button class="tab active" data-tab="nav" type="button">Навигация</button>
+    <button class="tab" data-tab="roles" type="button">Роли</button>
+  </div>
   <span id="status" class="status"></span>
-  <button class="btn" id="addBtn">+ Раздел</button>
-  <button class="btn primary" id="saveBtn">Сохранить</button>
+  <button class="btn" id="addBtn" type="button">+ Раздел</button>
+  <button class="btn primary" id="saveBtn" type="button">Сохранить</button>
 </header>
 
 <main>
-  <div class="card">
-    <h2>Общее</h2>
-    <div class="grid">
-      <div class="row">
-        <label>Цвет полосы (hex)</label>
-        <input type="text" id="color" placeholder="#262B64">
-      </div>
-      <div class="row">
-        <label>Баннер карточки (ссылка на картинку)</label>
-        <input type="text" id="bannerUrl" placeholder="https://...">
-      </div>
-    </div>
-    <div class="hint">Картинки лучше класть в папку <b>assets</b> репозитория и вставлять ссылку вида <b>https://raw.githubusercontent.com/...</b>. Дискордовские ссылки истекают.</div>
-  </div>
-
   <div class="card">
     <h2>Эмодзи</h2>
     <div class="row emoji-search">
@@ -83,11 +80,71 @@
     </div>
   </div>
 
-  <div id="sections"></div>
+  <div id="navPanel">
+    <div class="card">
+      <h2>Общее</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Цвет полосы (hex)</label>
+          <input type="text" id="color" placeholder="#262B64">
+        </div>
+        <div class="row">
+          <label>Баннер карточки (ссылка на картинку)</label>
+          <input type="text" id="bannerUrl" placeholder="https://...">
+        </div>
+      </div>
+      <div class="hint">Картинки лучше класть в папку <b>assets</b> репозитория и вставлять ссылку вида <b>https://raw.githubusercontent.com/...</b>. Дискордовские ссылки истекают.</div>
+    </div>
+
+    <div id="sections"></div>
+  </div>
+
+  <div id="rolesPanel" hidden>
+    <div class="card">
+      <h2>Меню ролей · общее</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Цвет полосы (hex)</label>
+          <input type="text" id="rolesColor" placeholder="#262B64">
+        </div>
+        <div class="row">
+          <label>Автор карточки</label>
+          <input type="text" id="rolesAuthor" placeholder="༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Главное меню</h2>
+      <div class="row">
+        <label>Текст (markdown Discord)</label>
+        <textarea id="rolesMainText" data-field="roles-main-text"></textarea>
+        <div class="counter" id="rolesMainCounter">0 / 4096</div>
+      </div>
+      <div class="row">
+        <label>Картинка (ссылка)</label>
+        <input type="text" id="rolesMainImage" data-field="roles-main-image" placeholder="https://...">
+      </div>
+    </div>
+
+    <div id="roleCategories"></div>
+
+    <div class="card">
+      <button class="btn" id="addCategoryBtn" type="button">+ Категория</button>
+      <div class="hint">
+        Категории — это кнопки главного меню. Внутри категории можно добавить до 5 кнопок ролей
+        и селект (например, цвета). Кнопка «Назад» добавляется автоматически.
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
 let state = null;
+let rolesState = null;
+let activeTab = 'nav';
+let allEmojis = [];
+let lastField = null;
 
 const statusEl = document.getElementById('status');
 
@@ -96,6 +153,26 @@ function setStatus(text, kind) {
   statusEl.className = 'status' + (kind ? ' ' + kind : '');
 }
 
+// ---------------------------------------------------------------------------
+// Вкладки
+// ---------------------------------------------------------------------------
+function switchTab(tab) {
+  activeTab = tab;
+  lastField = null;
+  document.getElementById('navPanel').hidden = tab !== 'nav';
+  document.getElementById('rolesPanel').hidden = tab !== 'roles';
+  document.getElementById('addBtn').hidden = tab !== 'nav';
+  document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
+  if (tab === 'roles' && !rolesState) loadRoles();
+}
+
+document.querySelectorAll('.tab').forEach((btn) => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// ---------------------------------------------------------------------------
+// Навигация
+// ---------------------------------------------------------------------------
 async function load() {
   const res = await fetch('/api/content');
   state = await res.json();
@@ -104,111 +181,6 @@ async function load() {
   renderSections();
   loadEmojis();
 }
-
-// ---------------------------------------------------------------------------
-// Эмодзи
-// ---------------------------------------------------------------------------
-let allEmojis = [];
-let lastField = null;
-
-function rememberField(event) {
-  const el = event.target;
-  // Запоминаем только поля разделов, чтобы поиск по эмодзи их не перебивал
-  if (el.dataset && el.dataset.field) lastField = el;
-}
-
-document.addEventListener('focusin', rememberField);
-document.addEventListener('input', rememberField);
-
-async function loadEmojis() {
-  const list = document.getElementById('emojiList');
-  list.textContent = 'Загружаю...';
-
-  try {
-    const res = await fetch('/api/emojis');
-    const data = await res.json();
-
-    if (!data.ok) {
-      list.textContent = '';
-      const err = document.createElement('div');
-      err.className = 'emoji-note';
-      err.textContent = 'Не удалось получить список: ' + data.error;
-      list.appendChild(err);
-      return;
-    }
-
-    allEmojis = data.emojis || [];
-    renderEmojiList('');
-  } catch (err) {
-    list.textContent = 'Ошибка: ' + err.message;
-  }
-}
-
-function renderEmojiList(filter) {
-  const host = document.getElementById('emojiList');
-  host.innerHTML = '';
-
-  const needle = filter.trim().toLowerCase();
-  const found = allEmojis.filter((e) => !needle || e.name.toLowerCase().includes(needle));
-
-  if (found.length === 0) {
-    host.textContent = allEmojis.length === 0 ? 'Эмодзи не найдены.' : 'Ничего не найдено.';
-    return;
-  }
-
-  for (const emoji of found) {
-    const chip = document.createElement('button');
-    chip.className = 'chip';
-    chip.type = 'button';
-    chip.dataset.emoji = `:${emoji.name}:`;
-    chip.title = `${emoji.name} — ${emoji.animated ? 'анимированный, ' : ''}с сервера «${emoji.source}»`;
-    chip.textContent = `:${emoji.name}:`;
-    host.appendChild(chip);
-  }
-}
-
-function insertEmoji(text) {
-  let field = lastField;
-  if (!field || !field.isConnected) {
-    const active = document.activeElement;
-    if (active && active.dataset && active.dataset.field) field = active;
-  }
-
-  if (!field) {
-    navigator.clipboard?.writeText(text).catch(() => {});
-    setStatus(`Скопировано: ${text} — вставь в нужное поле`, 'ok');
-    return;
-  }
-
-  const start = field.selectionStart ?? field.value.length;
-  const end = field.selectionEnd ?? field.value.length;
-  field.value = field.value.slice(0, start) + text + field.value.slice(end);
-  field.focus();
-  field.selectionStart = field.selectionEnd = start + text.length;
-  field.dispatchEvent(new Event('input', { bubbles: true }));
-  setStatus(`Вставлено ${text}`, 'ok');
-}
-
-const emojiListEl = document.getElementById('emojiList');
-
-// mousedown, а не click: preventDefault не даёт кнопке отобрать фокус у поля
-emojiListEl.addEventListener('mousedown', (event) => {
-  const chip = event.target.closest('.chip');
-  if (!chip) return;
-  event.preventDefault();
-  insertEmoji(chip.dataset.emoji);
-});
-
-// Активация с клавиатуры (Enter/Space) — detail === 0
-emojiListEl.addEventListener('click', (event) => {
-  const chip = event.target.closest('.chip');
-  if (!chip || event.detail !== 0) return;
-  insertEmoji(chip.dataset.emoji);
-});
-
-document.getElementById('emojiFilter').addEventListener('input', (event) => {
-  renderEmojiList(event.target.value);
-});
 
 function renderSections() {
   const host = document.getElementById('sections');
@@ -326,7 +298,396 @@ document.getElementById('addBtn').addEventListener('click', () => {
   renderSections();
 });
 
+// ---------------------------------------------------------------------------
+// Роли
+// ---------------------------------------------------------------------------
+async function loadRoles() {
+  setStatus('Загружаю меню ролей...');
+  try {
+    const res = await fetch('/api/roles');
+    const data = await res.json();
+    if (data && data.ok === false) {
+      setStatus('Роли: ' + (data.error || 'ошибка'), 'err');
+      return;
+    }
+    rolesState = data;
+  } catch (err) {
+    setStatus('Роли не загрузились: ' + err.message, 'err');
+    return;
+  }
+
+  document.getElementById('rolesColor').value = rolesState.color || '#262B64';
+  document.getElementById('rolesAuthor').value = rolesState.author || '༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺';
+  document.getElementById('rolesMainText').value = rolesState.main?.text || '';
+  document.getElementById('rolesMainImage').value = rolesState.main?.image || '';
+  updateRoleMainCounter();
+  renderRoleCategories();
+  setStatus('Меню ролей загружено', 'ok');
+}
+
+function updateRoleMainCounter() {
+  const el = document.getElementById('rolesMainText');
+  const counter = document.getElementById('rolesMainCounter');
+  if (!el || !counter) return;
+  counter.textContent = `${el.value.length} / 4096`;
+  counter.style.color = el.value.length > 4096 ? '#f08a8a' : '';
+}
+
+document.getElementById('rolesColor').addEventListener('input', (event) => {
+  if (rolesState) rolesState.color = event.target.value;
+});
+document.getElementById('rolesAuthor').addEventListener('input', (event) => {
+  if (rolesState) rolesState.author = event.target.value;
+});
+document.getElementById('rolesMainText').addEventListener('input', (event) => {
+  if (rolesState) {
+    rolesState.main = rolesState.main || {};
+    rolesState.main.text = event.target.value;
+  }
+  updateRoleMainCounter();
+});
+document.getElementById('rolesMainImage').addEventListener('input', (event) => {
+  if (rolesState) {
+    rolesState.main = rolesState.main || {};
+    rolesState.main.image = event.target.value;
+  }
+});
+
+function renderRoleCategories() {
+  const host = document.getElementById('roleCategories');
+  host.innerHTML = '';
+  const categories = rolesState?.categories || {};
+
+  Object.entries(categories).forEach(([key, cat], index) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="section-head">
+        <h2 style="margin:0">${index + 1}. ${escapeHtml(cat.label || key)}</h2>
+        <span class="key">ключ: ${escapeHtml(key)}</span>
+        <div class="spacer"></div>
+        <button class="btn danger" type="button" data-delcat="${escapeAttr(key)}">Удалить</button>
+      </div>
+      <div class="grid">
+        <div class="row"><label>Название кнопки в главном меню</label><input type="text" data-field="role-cat-label" data-catfield="label" value="${escapeAttr(cat.label || '')}"></div>
+        <div class="row"><label>Картинка (ссылка)</label><input type="text" data-field="role-cat-image" data-catfield="image" value="${escapeAttr(cat.image || '')}"></div>
+      </div>
+      <div class="row">
+        <label>Текст категории (markdown Discord)</label>
+        <textarea data-field="role-cat-text" data-catfield="text">${escapeHtml(cat.text || '')}</textarea>
+        <div class="counter">${(cat.text || '').length} / 4096</div>
+      </div>
+      <div class="grid">
+        <div class="row">
+          <label>Показ в главном меню</label>
+          <label style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px">
+            <input type="checkbox" data-catfield="hidden" ${cat.hidden ? 'checked' : ''} style="width:auto"> скрыть
+          </label>
+        </div>
+        <div class="row"><label>Placeholder селекта</label><input type="text" data-field="role-cat-placeholder" data-catfield="placeholder" value="${escapeAttr(cat.placeholder || '')}"></div>
+      </div>
+      <div class="grid">
+        <div class="row"><label>Роль категории (для цветов)</label><input type="text" data-catfield="categoryRole" value="${escapeAttr(cat.categoryRole || '')}"></div>
+        <div class="row"><label>Доп. роли для сброса (ID через запятую)</label><input type="text" data-catfield="extraRoles" value="${escapeAttr((cat.extraRoles || []).join(', '))}"></div>
+      </div>
+      <h3>Кнопки ролей</h3>
+      <div data-buttons-list></div>
+      <button class="btn" type="button" data-addbutton>+ Кнопка</button>
+      <h3>Опции селекта</h3>
+      <div data-options-list></div>
+      <button class="btn" type="button" data-addoption>+ Опция</button>
+    `;
+    host.appendChild(card);
+
+    card.querySelectorAll('[data-catfield]').forEach((el) => {
+      const handler = () => setCatField(key, el);
+      el.addEventListener('input', handler);
+      el.addEventListener('change', handler);
+    });
+
+    const buttonsHost = card.querySelector('[data-buttons-list]');
+    const buttons = Array.isArray(cat.buttons) ? cat.buttons : [];
+    if (buttons.length === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'hint';
+      hint.style.margin = '0 0 8px';
+      hint.textContent = 'Кнопок нет.';
+      buttonsHost.appendChild(hint);
+    }
+    buttons.forEach((button, i) => appendButtonRow(buttonsHost, key, button, i));
+
+    const optionsHost = card.querySelector('[data-options-list]');
+    const options = Array.isArray(cat.options) ? cat.options : [];
+    if (options.length === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'hint';
+      hint.style.margin = '0 0 8px';
+      hint.textContent = 'Опций нет.';
+      optionsHost.appendChild(hint);
+    }
+    options.forEach((option, i) => appendOptionRow(optionsHost, key, option, i));
+
+    card.querySelector('[data-addbutton]').addEventListener('click', () => {
+      const target = rolesState.categories[key];
+      target.buttons = Array.isArray(target.buttons) ? target.buttons : [];
+      if (target.buttons.length >= 5) return setStatus('В одной категории не больше 5 кнопок.', 'err');
+      target.buttons.push({ label: '༻│НОВАЯ РОЛЬ', roleId: '' });
+      renderRoleCategories();
+    });
+
+    card.querySelector('[data-addoption]').addEventListener('click', () => {
+      const target = rolesState.categories[key];
+      target.options = Array.isArray(target.options) ? target.options : [];
+      if (target.options.length >= 25) return setStatus('В селекте не больше 25 опций.', 'err');
+      target.options.push({ value: `OPT${target.options.length + 1}`, label: '𝄢 ❔ Новая опция', roleId: '' });
+      renderRoleCategories();
+    });
+
+    card.querySelector('[data-delcat]').addEventListener('click', () => {
+      if (!confirm(`Удалить категорию "${cat.label || key}"?`)) return;
+      delete rolesState.categories[key];
+      renderRoleCategories();
+    });
+  });
+}
+
+function setCatField(key, el) {
+  const cat = rolesState?.categories?.[key];
+  if (!cat) return;
+  const field = el.dataset.catfield;
+
+  if (el.type === 'checkbox') {
+    cat[field] = el.checked;
+    return;
+  }
+
+  if (field === 'extraRoles') {
+    cat[field] = el.value.split(',').map((s) => s.trim()).filter(Boolean);
+    return;
+  }
+
+  cat[field] = el.value;
+}
+
+function appendButtonRow(host, key, button, index) {
+  const row = document.createElement('div');
+  row.className = 'mini';
+  row.innerHTML = `
+    <div class="grid">
+      <div class="row"><label>Подпись кнопки</label><input type="text" data-field="role-button-label" value="${escapeAttr(button.label || '')}"></div>
+      <div class="row"><label>ID роли</label><input type="text" value="${escapeAttr(button.roleId || '')}"></div>
+    </div>
+    <button class="btn danger" type="button">Удалить</button>
+  `;
+
+  const inputs = row.querySelectorAll('input');
+  inputs[0].addEventListener('input', (event) => { button.label = event.target.value; });
+  inputs[1].addEventListener('input', (event) => { button.roleId = event.target.value.trim(); });
+
+  row.querySelector('button').addEventListener('click', () => {
+    rolesState.categories[key].buttons.splice(index, 1);
+    renderRoleCategories();
+  });
+
+  host.appendChild(row);
+}
+
+function appendOptionRow(host, key, option, index) {
+  const row = document.createElement('div');
+  row.className = 'mini';
+  row.innerHTML = `
+    <div class="grid">
+      <div class="row"><label>Код (value)</label><input type="text" value="${escapeAttr(option.value || '')}"></div>
+      <div class="row"><label>Подпись в списке</label><input type="text" data-field="role-option-label" value="${escapeAttr(option.label || '')}"></div>
+      <div class="row"><label>ID роли (пусто — убрать все)</label><input type="text" value="${escapeAttr(option.roleId || '')}"></div>
+    </div>
+    <button class="btn danger" type="button">Удалить</button>
+  `;
+
+  const inputs = row.querySelectorAll('input');
+  inputs[0].addEventListener('input', (event) => { option.value = event.target.value.trim(); });
+  inputs[1].addEventListener('input', (event) => { option.label = event.target.value; });
+  inputs[2].addEventListener('input', (event) => { option.roleId = event.target.value.trim(); });
+
+  row.querySelector('button').addEventListener('click', () => {
+    rolesState.categories[key].options.splice(index, 1);
+    renderRoleCategories();
+  });
+
+  host.appendChild(row);
+}
+
+document.getElementById('addCategoryBtn').addEventListener('click', () => {
+  if (!rolesState) return;
+  const key = (prompt('Ключ новой категории (латиницей, без пробелов), например: events') || '').trim().toLowerCase();
+  if (!key) return;
+  if (!/^[a-z0-9_]+$/.test(key)) return alert('Только латиница, цифры и _');
+  if (rolesState.categories[key]) return alert('Такая категория уже есть');
+
+  rolesState.categories[key] = {
+    label: `༻❔│${key.toUpperCase()}`,
+    text: 'Новая категория. Отредактируй текст.',
+    image: '',
+    buttons: [],
+  };
+  renderRoleCategories();
+});
+
+async function saveRoles() {
+  if (!rolesState) return;
+
+  rolesState.color = document.getElementById('rolesColor').value.trim() || '#262B64';
+  rolesState.author = document.getElementById('rolesAuthor').value.trim();
+  rolesState.main = rolesState.main || {};
+  rolesState.main.text = document.getElementById('rolesMainText').value;
+  rolesState.main.image = document.getElementById('rolesMainImage').value.trim();
+
+  if ((rolesState.main.text || '').length > 4096) {
+    setStatus('Текст главного меню больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+
+  for (const cat of Object.values(rolesState.categories || {})) {
+    if ((cat.text || '').length > 4096) {
+      setStatus('Текст категории больше 4096 символов — Discord не примет.', 'err');
+      return;
+    }
+    if (Array.isArray(cat.extraRoles) && cat.extraRoles.length === 0) delete cat.extraRoles;
+    if (Array.isArray(cat.buttons) && cat.buttons.length === 0) delete cat.buttons;
+    if (Array.isArray(cat.options) && cat.options.length === 0) delete cat.options;
+  }
+
+  setStatus('Сохраняю...');
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/roles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rolesState),
+    });
+    const data = await res.json();
+    if (data.ok) setStatus(data.message, 'ok');
+    else setStatus('Ошибка: ' + (data.error || 'неизвестно'), 'err');
+  } catch (err) {
+    setStatus('Ошибка сети: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Эмодзи
+// ---------------------------------------------------------------------------
+function rememberField(event) {
+  const el = event.target;
+  // Запоминаем только поля с data-field, чтобы поиск по эмодзи их не перебивал
+  if (el.dataset && el.dataset.field) lastField = el;
+}
+
+document.addEventListener('focusin', rememberField);
+document.addEventListener('input', rememberField);
+
+async function loadEmojis() {
+  const list = document.getElementById('emojiList');
+  list.textContent = 'Загружаю...';
+
+  try {
+    const res = await fetch('/api/emojis');
+    const data = await res.json();
+
+    if (!data.ok) {
+      list.textContent = '';
+      const err = document.createElement('div');
+      err.className = 'emoji-note';
+      err.textContent = 'Не удалось получить список: ' + data.error;
+      list.appendChild(err);
+      return;
+    }
+
+    allEmojis = data.emojis || [];
+    renderEmojiList('');
+  } catch (err) {
+    list.textContent = 'Ошибка: ' + err.message;
+  }
+}
+
+function renderEmojiList(filter) {
+  const host = document.getElementById('emojiList');
+  host.innerHTML = '';
+
+  const needle = filter.trim().toLowerCase();
+  const found = allEmojis.filter((e) => !needle || e.name.toLowerCase().includes(needle));
+
+  if (found.length === 0) {
+    host.textContent = allEmojis.length === 0 ? 'Эмодзи не найдены.' : 'Ничего не найдено.';
+    return;
+  }
+
+  for (const emoji of found) {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.type = 'button';
+    chip.dataset.emoji = `:${emoji.name}:`;
+    chip.title = `${emoji.name} — ${emoji.animated ? 'анимированный, ' : ''}с сервера «${emoji.source}»`;
+    chip.textContent = `:${emoji.name}:`;
+    host.appendChild(chip);
+  }
+}
+
+function insertEmoji(text) {
+  let field = lastField;
+  if (!field || !field.isConnected) {
+    const active = document.activeElement;
+    if (active && active.dataset && active.dataset.field) field = active;
+  }
+
+  if (!field) {
+    navigator.clipboard?.writeText(text).catch(() => {});
+    setStatus(`Скопировано: ${text} — вставь в нужное поле`, 'ok');
+    return;
+  }
+
+  const start = field.selectionStart ?? field.value.length;
+  const end = field.selectionEnd ?? field.value.length;
+  field.value = field.value.slice(0, start) + text + field.value.slice(end);
+  field.focus();
+  field.selectionStart = field.selectionEnd = start + text.length;
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+  setStatus(`Вставлено ${text}`, 'ok');
+}
+
+const emojiListEl = document.getElementById('emojiList');
+
+// mousedown, а не click: preventDefault не даёт кнопке отобрать фокус у поля
+emojiListEl.addEventListener('mousedown', (event) => {
+  const chip = event.target.closest('.chip');
+  if (!chip) return;
+  event.preventDefault();
+  insertEmoji(chip.dataset.emoji);
+});
+
+// Активация с клавиатуры (Enter/Space) — detail === 0
+emojiListEl.addEventListener('click', (event) => {
+  const chip = event.target.closest('.chip');
+  if (!chip || event.detail !== 0) return;
+  insertEmoji(chip.dataset.emoji);
+});
+
+document.getElementById('emojiFilter').addEventListener('input', (event) => {
+  renderEmojiList(event.target.value);
+});
+
+// ---------------------------------------------------------------------------
+// Сохранение
+// ---------------------------------------------------------------------------
 document.getElementById('saveBtn').addEventListener('click', async () => {
+  if (activeTab === 'roles') {
+    await saveRoles();
+    return;
+  }
+
   state.color = document.getElementById('color').value.trim() || '#262B64';
   state.bannerUrl = document.getElementById('bannerUrl').value.trim();
 
@@ -372,6 +733,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   }
 });
 
+switchTab('nav');
 load().catch((err) => setStatus('Не загрузилось: ' + err.message, 'err'));
 </script>
 </body>

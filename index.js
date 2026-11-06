@@ -5,6 +5,7 @@ const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlag
 const nav = require('./navigation'); // тексты перечитываются из content.json на лету
 const emojis = require('./emojis');  // :name: -> <:name:id> для эмодзи с других серверов
 const buttons = require('./buttons'); // кнопки главной карточки и разделов
+const roles = require('./roles');     // меню ролей (/роли)
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -145,6 +146,11 @@ const COMMANDS = [
     // Полная копия /навигация — для проверок, чтобы не трогать основную команду
     name: 'тест',
     description: 'Тестовая копия /навигация — отправляет такую же карточку',
+    defaultMemberPermissions: '0',
+  },
+  {
+    name: 'роли',
+    description: 'Отправить меню выбора ролей в этот канал',
     defaultMemberPermissions: '0',
   },
   { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
@@ -306,6 +312,12 @@ async function start() {
     console.log('');
   }
 
+  if (botMember && !botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+    console.log('  [!] У бота нет права «Управление ролями».');
+    console.log('      Меню /роли не сможет выдавать и снимать роли — включи право у роли бота.');
+    console.log('');
+  }
+
   // Учимся эмодзи из готовых записей <:name:id> прямо из текстов
   for (const section of Object.values(nav.SECTIONS)) {
     emojis.learn(section?.text);
@@ -426,6 +438,38 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // rolemenu:* — переходы внутри меню ролей
+    if (id.startsWith('rolemenu:')) {
+      try {
+        await roles.showMenu(interaction, id.slice(9));
+      } catch (err) {
+        console.log(`  [!] Ошибка меню ролей: ${err.message}`);
+      }
+      return;
+    }
+
+    // roletoggle:<id> — выдать/снять роль по клику
+    if (id.startsWith('roletoggle:')) {
+      try {
+        await roles.toggleRole(interaction, id.slice(11));
+      } catch (err) {
+        console.log(`  [!] Ошибка выдачи роли: ${err.message}`);
+      }
+      return;
+    }
+
+    return;
+  }
+
+  // Селект цветов в меню ролей
+  if (interaction.isStringSelectMenu()) {
+    if (interaction.customId === 'rolecolor') {
+      try {
+        await roles.pickColor(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка выбора цвета: ${err.message}`);
+      }
+    }
     return;
   }
 
@@ -450,6 +494,13 @@ client.on('interactionCreate', async (interaction) => {
         embeds: [embed],
         components: isTest ? testNavRows() : navRows(),
       });
+      return;
+    }
+
+    if (interaction.commandName === 'роли') {
+      // Отвечаем невидимо, а карточку меню ролей отправляем обычным сообщением
+      await interaction.reply({ content: 'Меню ролей отправлено 👇', flags: MessageFlags.Ephemeral });
+      await interaction.channel.send(roles.mainView(interaction));
       return;
     }
 
