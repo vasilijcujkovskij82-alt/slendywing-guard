@@ -177,8 +177,15 @@ function navRows() {
   return buttons.navRows(nav.SECTIONS);
 }
 
-async function sendSection(interaction, key) {
-  const section = nav.SECTIONS[key];
+function testNavRows() {
+  return buttons.navRows(nav.TEST_SECTIONS, 'test');
+}
+
+async function sendSection(interaction, key, source = 'nav') {
+  // 'nav' — обычная навигация (content.json), 'test' — /тест (content.test.json)
+  const isTest = source === 'test';
+  const sections = isTest ? nav.TEST_SECTIONS : nav.SECTIONS;
+  const section = sections[key];
   if (!section) return;
 
   let text = section.text || '';
@@ -201,7 +208,9 @@ async function sendSection(interaction, key) {
   const icon = interaction.guild?.iconURL({ size: 256 }) ?? null;
 
   const embeds = parts.map((part, index) => {
-    const embed = new EmbedBuilder().setColor(nav.SECTION_COLOR).setDescription(part);
+    const embed = new EmbedBuilder()
+      .setColor(isTest ? nav.TEST_SECTION_COLOR : nav.SECTION_COLOR)
+      .setDescription(part);
     if (index === 0) {
       if (section.title) embed.setTitle(emojis.resolve(section.title));
       if (icon) embed.setThumbnail(icon);
@@ -215,7 +224,7 @@ async function sendSection(interaction, key) {
   }
 
   // Дополнительные кнопки внутри раздела (например, «ДОСКА ПОЧЕТА» в «О SlendyWing»)
-  const extraRows = buttons.sectionRows(section, nav.SECTIONS);
+  const extraRows = buttons.sectionRows(section, sections, source);
 
   await interaction.reply({ embeds: [embeds[0]], components: extraRows, flags: MessageFlags.Ephemeral });
 
@@ -396,12 +405,27 @@ client.on('guildMemberRemove', (member) => memberCountCache.delete(member.guild.
 // ---------------------------------------------------------------------------
 client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton()) {
-    if (!interaction.customId.startsWith('nav:')) return;
-    try {
-      await sendSection(interaction, interaction.customId.slice(4));
-    } catch (err) {
-      console.log(`  [!] Ошибка навигации: ${err.message}`);
+    const id = interaction.customId;
+
+    // nav:* — обычная навигация, test:* — кнопки команды /тест
+    if (id.startsWith('nav:')) {
+      try {
+        await sendSection(interaction, id.slice(4), 'nav');
+      } catch (err) {
+        console.log(`  [!] Ошибка навигации: ${err.message}`);
+      }
+      return;
     }
+
+    if (id.startsWith('test:')) {
+      try {
+        await sendSection(interaction, id.slice(5), 'test');
+      } catch (err) {
+        console.log(`  [!] Ошибка тестовой навигации: ${err.message}`);
+      }
+      return;
+    }
+
     return;
   }
 
@@ -409,18 +433,23 @@ client.on('interactionCreate', async (interaction) => {
 
   try {
     if (interaction.commandName === 'навигация' || interaction.commandName === 'тест') {
+      const isTest = interaction.commandName === 'тест';
       const icon = interaction.guild?.iconURL({ size: 256 });
 
       const embed = new EmbedBuilder()
         .setAuthor({ name: '༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺', iconURL: icon ?? undefined })
-        .setColor(nav.SECTION_COLOR);
+        .setColor(isTest ? nav.TEST_SECTION_COLOR : nav.SECTION_COLOR);
 
-      if (nav.BANNER_URL) embed.setImage(nav.BANNER_URL);
+      const bannerUrl = isTest ? nav.TEST_BANNER_URL : nav.BANNER_URL;
+      if (bannerUrl) embed.setImage(bannerUrl);
 
       // Отвечаем невидимо, а карточку отправляем обычным сообщением —
       // так над ботом не появляется «использовал /навигацию»
       await interaction.reply({ content: 'Навигация отправлена 👇', flags: MessageFlags.Ephemeral });
-      await interaction.channel.send({ embeds: [embed], components: navRows() });
+      await interaction.channel.send({
+        embeds: [embed],
+        components: isTest ? testNavRows() : navRows(),
+      });
       return;
     }
 

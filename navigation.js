@@ -3,13 +3,17 @@
 // Все тексты навигации лежат в content.json — их можно менять через редактор
 // (ярлык "EDITOR - SlendyWing" на рабочем столе).
 //
-// Файл перечитывается на лету: если content.json изменился, бот подхватит
+// content.test.json — отдельная копия текстов для команды /тест.
+// Её правки не затрагивают основную навигацию.
+//
+// Файлы перечитываются на лету: если файл изменился, бот подхватит
 // новый текст без перезапуска.
 
 const fs = require('node:fs');
 const path = require('node:path');
 
 const CONTENT_PATH = path.join(__dirname, 'content.json');
+const TEST_CONTENT_PATH = path.join(__dirname, 'content.test.json');
 
 const FALLBACK = {
   color: '#262B64',
@@ -22,28 +26,28 @@ const FALLBACK = {
   },
 };
 
-let cached = null;
-let cachedMtimeMs = -1;
+// Кэш на каждый файл отдельно
+const cache = new Map(); // filePath -> { data, mtimeMs }
 
-function readFile() {
+function readFile(filePath) {
   let mtimeMs = -1;
   try {
-    mtimeMs = fs.statSync(CONTENT_PATH).mtimeMs;
+    mtimeMs = fs.statSync(filePath).mtimeMs;
   } catch {
     return FALLBACK;
   }
 
-  if (cached && mtimeMs === cachedMtimeMs) return cached;
+  const cached = cache.get(filePath);
+  if (cached && mtimeMs === cached.mtimeMs) return cached.data;
 
   try {
-    const data = JSON.parse(fs.readFileSync(CONTENT_PATH, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     if (!data || typeof data !== 'object' || !data.sections) throw new Error('нет поля sections');
-    cached = data;
-    cachedMtimeMs = mtimeMs;
+    cache.set(filePath, { data, mtimeMs });
     return data;
   } catch (err) {
-    console.log(`  [!] content.json не прочитан (${err.message}), использую заглушку.`);
-    return FALLBACK;
+    console.log(`  [!] ${path.basename(filePath)} не прочитан (${err.message}), использую заглушку.`);
+    return cached ? cached.data : FALLBACK;
   }
 }
 
@@ -53,17 +57,35 @@ function parseColor(value) {
   return Number.isNaN(parsed) ? 0x262b64 : parsed;
 }
 
+function banner(filePath) {
+  const value = readFile(filePath).bannerUrl;
+  return typeof value === 'string' ? value : '';
+}
+
 // Геттеры читают файл при каждом обращении — правки в редакторе применяются сразу
 module.exports = {
   CONTENT_PATH,
+  TEST_CONTENT_PATH,
+
+  // Основная навигация (/навигация)
   get SECTIONS() {
-    return readFile().sections;
+    return readFile(CONTENT_PATH).sections;
   },
   get BANNER_URL() {
-    const value = readFile().bannerUrl;
-    return typeof value === 'string' ? value : '';
+    return banner(CONTENT_PATH);
   },
   get SECTION_COLOR() {
-    return parseColor(readFile().color);
+    return parseColor(readFile(CONTENT_PATH).color);
+  },
+
+  // Тестовая навигация (/тест) — отдельный файл
+  get TEST_SECTIONS() {
+    return readFile(TEST_CONTENT_PATH).sections;
+  },
+  get TEST_BANNER_URL() {
+    return banner(TEST_CONTENT_PATH);
+  },
+  get TEST_SECTION_COLOR() {
+    return parseColor(readFile(TEST_CONTENT_PATH).color);
   },
 };

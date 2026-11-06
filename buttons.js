@@ -50,10 +50,10 @@ function chunk(list, size) {
 }
 
 /** Кнопки главной карточки: все разделы, кроме hidden */
-function navRows(sections) {
+function navRows(sections, prefix = 'nav') {
   const entries = Object.entries(sections || {}).filter(([, section]) => !section?.hidden);
   const buttons = entries.slice(0, 20).map(([key, section]) =>
-    makeButton({ customId: `nav:${key}`, label: section.label || key, emoji: section.emoji })
+    makeButton({ customId: `${prefix}:${key}`, label: section.label || key, emoji: section.emoji })
   );
 
   return chunk(buttons, 5).map((group) => new ActionRowBuilder().addComponents(group));
@@ -63,7 +63,7 @@ function navRows(sections) {
  * Дополнительные кнопки внутри раздела.
  * В content.json это поле buttons: [{ "label": "ДОСКА ПОЧЕТА", "emoji": "🎖", "target": "honor" }]
  */
-function sectionRows(section, sections) {
+function sectionRows(section, sections, prefix = 'nav') {
   const list = Array.isArray(section?.buttons) ? section.buttons : [];
   if (list.length === 0) return [];
 
@@ -86,7 +86,7 @@ function sectionRows(section, sections) {
       }
 
       return makeButton({
-        customId: `nav:${button.target}`,
+        customId: `${prefix}:${button.target}`,
         label: button.label || sections[button.target]?.label,
         emoji: button.emoji || sections[button.target]?.emoji,
       });
