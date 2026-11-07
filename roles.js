@@ -68,17 +68,21 @@ function parseColor(value) {
 // ---------------------------------------------------------------------------
 // Сборка карточек
 // ---------------------------------------------------------------------------
-function embedFor(interaction, text, image) {
+function embedFor(interaction, text, image, { author = true } = {}) {
   const data = read();
   const icon = interaction.guild?.iconURL({ size: 256 }) ?? undefined;
 
   const embed = new EmbedBuilder()
     .setColor(parseColor(data.color))
-    .setAuthor({
+    .setDescription(emojis.resolve(String(text || ' ')));
+
+  // Автор показывается только на главной карточке; в категориях его убираем
+  if (author) {
+    embed.setAuthor({
       name: data.author || '༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺',
       iconURL: icon,
-    })
-    .setDescription(emojis.resolve(String(text || ' ')));
+    });
+  }
 
   // Миниатюрная аватарка сервера в правом верхнем углу карточки
   if (icon) embed.setThumbnail(icon);
@@ -136,7 +140,7 @@ function categoryRows(interaction, key) {
   }
 
   // Кнопка «Назад» больше не нужна: категории открываются с главной карточки
-  return { embeds: [embedFor(interaction, cat.text, cat.image)], components: rows };
+  return { embeds: [embedFor(interaction, cat.text, cat.image, { author: false })], components: rows };
 }
 
 function mainView(interaction) {
