@@ -17,6 +17,7 @@
   .btn.primary { background:var(--accent); border-color:var(--accent); font-weight:600; }
   .btn.primary:hover { background:#4752c4; }
   .btn.danger { color:#f08a8a; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
   .tabs { display:flex; gap:4px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:3px; }
   .tab { background:transparent; border:0; color:var(--dim); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
   .tab:hover { color:var(--text); }
@@ -61,6 +62,7 @@
   <div class="tabs">
     <button class="tab active" data-tab="nav" type="button">Навигация</button>
     <button class="tab" data-tab="roles" type="button">Роли</button>
+    <button class="tab" data-tab="buttons" type="button">Кнопки</button>
   </div>
   <span id="status" class="status"></span>
   <button class="btn" id="addBtn" type="button">+ Раздел</button>
@@ -137,6 +139,43 @@
       </div>
     </div>
   </div>
+
+  <div id="buttonsPanel" hidden>
+    <div class="card">
+      <h2>Все кнопки</h2>
+      <div class="hint" style="margin:0">
+        Здесь собраны все кнопки бота: главная карточка навигации, кнопки внутри разделов,
+        кнопки меню ролей, кнопки ролей и опции селектов. Всё, что ты добавишь на вкладках
+        «Навигация» и «Роли», появится здесь автоматически. Сохранение обновляет сразу
+        <b>content.json</b> и <b>roles.json</b>.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Навигация · главная карточка</h2>
+      <div id="buttonsNavMain"></div>
+    </div>
+
+    <div class="card">
+      <h2>Навигация · кнопки внутри разделов</h2>
+      <div id="buttonsNavExtra"></div>
+    </div>
+
+    <div class="card">
+      <h2>Меню ролей · главная карточка</h2>
+      <div id="buttonsRolesMain"></div>
+    </div>
+
+    <div class="card">
+      <h2>Меню ролей · кнопки ролей</h2>
+      <div id="buttonsRolesToggle"></div>
+    </div>
+
+    <div class="card">
+      <h2>Меню ролей · опции селекта</h2>
+      <div id="buttonsRolesOptions"></div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -157,13 +196,25 @@ function setStatus(text, kind) {
 // Вкладки
 // ---------------------------------------------------------------------------
 function switchTab(tab) {
+  const previous = activeTab;
+  const changed = previous !== tab;
   activeTab = tab;
   lastField = null;
   document.getElementById('navPanel').hidden = tab !== 'nav';
   document.getElementById('rolesPanel').hidden = tab !== 'roles';
+  document.getElementById('buttonsPanel').hidden = tab !== 'buttons';
   document.getElementById('addBtn').hidden = tab !== 'nav';
   document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
+
+  // Перерисовываем вкладки при входе, чтобы правки из «Кнопок» были видны сразу
+  if (changed && tab === 'nav' && state) {
+    document.getElementById('color').value = state.color || '#262B64';
+    document.getElementById('bannerUrl').value = state.bannerUrl || '';
+    renderSections();
+  }
   if (tab === 'roles' && !rolesState) loadRoles();
+  else if (changed && tab === 'roles' && rolesState) renderRoleCategories();
+  if (changed && tab === 'buttons') loadButtons();
 }
 
 document.querySelectorAll('.tab').forEach((btn) => {
@@ -173,12 +224,16 @@ document.querySelectorAll('.tab').forEach((btn) => {
 // ---------------------------------------------------------------------------
 // Навигация
 // ---------------------------------------------------------------------------
-async function load() {
+async function loadNav() {
   const res = await fetch('/api/content');
   state = await res.json();
   document.getElementById('color').value = state.color || '#262B64';
   document.getElementById('bannerUrl').value = state.bannerUrl || '';
   renderSections();
+}
+
+async function load() {
+  await loadNav();
   loadEmojis();
 }
 
@@ -238,6 +293,26 @@ function renderSections() {
         }
       });
     }
+  });
+
+  // Доп. кнопки и скрытие пишем в state сразу, чтобы вкладка «Кнопки» видела правки
+  host.querySelectorAll('[data-buttons]').forEach((input) => {
+    input.addEventListener('input', () => {
+      const key = input.dataset.buttons;
+      if (!state.sections[key]) return;
+      const list = textToButtons(input.value);
+      if (list.length) state.sections[key].buttons = list;
+      else delete state.sections[key].buttons;
+    });
+  });
+
+  host.querySelectorAll('[data-hidden]').forEach((box) => {
+    box.addEventListener('change', () => {
+      const key = box.dataset.hidden;
+      if (!state.sections[key]) return;
+      if (box.checked) state.sections[key].hidden = true;
+      else delete state.sections[key].hidden;
+    });
   });
 
   host.querySelectorAll('[data-del]').forEach((btn) => {
@@ -578,6 +653,372 @@ async function saveRoles() {
 }
 
 // ---------------------------------------------------------------------------
+// Кнопки (все кнопки бота в одном месте)
+// ---------------------------------------------------------------------------
+async function loadButtons() {
+  if (!state) {
+    try {
+      await loadNav();
+    } catch (err) {
+      setStatus('Навигация не загрузилась: ' + err.message, 'err');
+      return;
+    }
+  }
+
+  if (!rolesState) await loadRoles();
+  if (!state || !rolesState) return;
+
+  renderButtons();
+}
+
+function renderButtons() {
+  if (!state || !rolesState) return;
+  renderNavMainButtons();
+  renderNavExtraButtons();
+  renderRoleMainButtons();
+  renderRoleToggleButtons();
+  renderRoleOptionButtons();
+}
+
+function addEmptyHint(host, text) {
+  const hint = document.createElement('div');
+  hint.className = 'hint';
+  hint.style.margin = '0 0 8px';
+  hint.textContent = text;
+  host.appendChild(hint);
+}
+
+function makeGroupBox(title) {
+  const box = document.createElement('details');
+  box.className = 'mini';
+  const summary = document.createElement('summary');
+  summary.style.cursor = 'pointer';
+  summary.style.marginBottom = '8px';
+  summary.textContent = title;
+  box.appendChild(summary);
+  return box;
+}
+
+// Главная карточка навигации: подпись, эмодзи и показ
+function renderNavMainButtons() {
+  const host = document.getElementById('buttonsNavMain');
+  host.innerHTML = '';
+  const sections = state.sections || {};
+  const keys = Object.keys(sections);
+  if (!keys.length) return addEmptyHint(host, 'Разделов пока нет. Добавь их на вкладке «Навигация».');
+
+  keys.forEach((key) => {
+    const section = sections[key];
+    const row = document.createElement('div');
+    row.className = 'mini';
+    row.innerHTML = `
+      <div class="grid">
+        <div class="row"><label>Подпись на кнопке</label><input type="text" data-field="btn-nav-label" value="${escapeAttr(section.label || '')}"></div>
+        <div class="row"><label>Эмодзи</label><input type="text" data-field="btn-nav-emoji" value="${escapeAttr(section.emoji || '')}"></div>
+      </div>
+      <div class="row">
+        <label style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px">
+          <input type="checkbox" data-field="btn-nav-hidden" ${section.hidden ? 'checked' : ''} style="width:auto"> скрыть с главной карточки
+        </label>
+      </div>
+      <div class="hint" style="margin:0">Раздел: <b>${escapeHtml(section.label || key)}</b> · ключ <code>${escapeHtml(key)}</code></div>
+    `;
+
+    const [labelInput, emojiInput] = row.querySelectorAll('input[type=text]');
+    const hiddenBox = row.querySelector('input[type=checkbox]');
+
+    labelInput.addEventListener('input', () => { section.label = labelInput.value; });
+    emojiInput.addEventListener('input', () => { section.emoji = emojiInput.value; });
+    hiddenBox.addEventListener('change', () => {
+      if (hiddenBox.checked) section.hidden = true;
+      else delete section.hidden;
+    });
+
+    host.appendChild(row);
+  });
+}
+
+// Кнопки внутри разделов навигации
+function renderNavExtraButtons() {
+  const host = document.getElementById('buttonsNavExtra');
+  host.innerHTML = '';
+  const sections = state.sections || {};
+  const keys = Object.keys(sections);
+  if (!keys.length) return addEmptyHint(host, 'Разделов пока нет. Добавь их на вкладке «Навигация».');
+
+  keys.forEach((key) => {
+    const section = sections[key];
+    const list = Array.isArray(section.buttons) ? section.buttons : [];
+    const box = makeGroupBox(`${section.label || key} — ${list.length ? list.length + ' кн.' : 'кнопок нет'}`);
+    if (list.length) box.open = true;
+
+    if (!list.length) addEmptyHint(box, 'Внутри раздела кнопок нет.');
+
+    list.forEach((button, index) => {
+      const row = document.createElement('div');
+      row.className = 'mini';
+      row.innerHTML = `
+        <div class="grid">
+          <div class="row"><label>Подпись</label><input type="text" data-field="btn-nav-extra-label" value="${escapeAttr(button.label || '')}"></div>
+          <div class="row"><label>Эмодзи</label><input type="text" data-field="btn-nav-extra-emoji" value="${escapeAttr(button.emoji || '')}"></div>
+        </div>
+        <div class="grid">
+          <div class="row"><label>Куда ведёт (ключ раздела или url:https://...)</label><input type="text" data-field="btn-nav-extra-target" value="${escapeAttr(button.target || '')}" placeholder="honor или url:https://..."></div>
+          <div class="row" style="display:flex;align-items:flex-end"><button class="btn danger" type="button" data-del>Удалить</button></div>
+        </div>
+      `;
+
+      const [labelInput, emojiInput, targetInput] = row.querySelectorAll('input');
+      labelInput.addEventListener('input', () => { button.label = labelInput.value; });
+      emojiInput.addEventListener('input', () => { button.emoji = emojiInput.value; });
+      targetInput.addEventListener('input', () => { button.target = targetInput.value.trim(); });
+
+      row.querySelector('[data-del]').addEventListener('click', () => {
+        section.buttons.splice(index, 1);
+        if (!section.buttons.length) delete section.buttons;
+        renderNavExtraButtons();
+      });
+
+      box.appendChild(row);
+    });
+
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'btn';
+    add.textContent = '+ Кнопка в раздел';
+    if (list.length >= 5) {
+      add.disabled = true;
+      add.title = 'В одном разделе не больше 5 кнопок — Discord не покажет остальные.';
+    }
+    add.addEventListener('click', () => {
+      section.buttons = Array.isArray(section.buttons) ? section.buttons : [];
+      if (section.buttons.length >= 5) return setStatus('В одном разделе не больше 5 кнопок.', 'err');
+      section.buttons.push({ label: 'НОВАЯ КНОПКА', emoji: '', target: '' });
+      renderNavExtraButtons();
+    });
+    box.appendChild(add);
+
+    host.appendChild(box);
+  });
+}
+
+// Главная карточка меню ролей: подпись категории и показ
+function renderRoleMainButtons() {
+  const host = document.getElementById('buttonsRolesMain');
+  host.innerHTML = '';
+  const categories = rolesState.categories || {};
+  const keys = Object.keys(categories);
+  if (!keys.length) return addEmptyHint(host, 'Категорий пока нет. Добавь их на вкладке «Роли».');
+
+  keys.forEach((key) => {
+    const cat = categories[key];
+    const row = document.createElement('div');
+    row.className = 'mini';
+    row.innerHTML = `
+      <div class="row"><label>Подпись на кнопке</label><input type="text" data-field="btn-role-main-label" value="${escapeAttr(cat.label || '')}"></div>
+      <div class="row">
+        <label style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px">
+          <input type="checkbox" data-field="btn-role-main-hidden" ${cat.hidden ? 'checked' : ''} style="width:auto"> скрыть с главной карточки
+        </label>
+      </div>
+      <div class="hint" style="margin:0">Ключ категории: <code>${escapeHtml(key)}</code></div>
+    `;
+
+    const labelInput = row.querySelector('input[type=text]');
+    const hiddenBox = row.querySelector('input[type=checkbox]');
+
+    labelInput.addEventListener('input', () => { cat.label = labelInput.value; });
+    hiddenBox.addEventListener('change', () => {
+      if (hiddenBox.checked) cat.hidden = true;
+      else delete cat.hidden;
+    });
+
+    host.appendChild(row);
+  });
+}
+
+// Кнопки выдачи/снятия ролей внутри категорий
+function renderRoleToggleButtons() {
+  const host = document.getElementById('buttonsRolesToggle');
+  host.innerHTML = '';
+  const categories = rolesState.categories || {};
+  const keys = Object.keys(categories);
+  if (!keys.length) return addEmptyHint(host, 'Категорий пока нет. Добавь их на вкладке «Роли».');
+
+  keys.forEach((key) => {
+    const cat = categories[key];
+    const list = Array.isArray(cat.buttons) ? cat.buttons : [];
+    const box = makeGroupBox(`${cat.label || key} — ${list.length ? list.length + ' кн.' : 'кнопок нет'}`);
+    if (list.length) box.open = true;
+
+    if (!list.length) addEmptyHint(box, 'Кнопок ролей нет.');
+
+    list.forEach((button, index) => {
+      const row = document.createElement('div');
+      row.className = 'mini';
+      row.innerHTML = `
+        <div class="grid">
+          <div class="row"><label>Подпись</label><input type="text" data-field="btn-role-toggle-label" value="${escapeAttr(button.label || '')}"></div>
+          <div class="row"><label>ID роли</label><input type="text" data-field="btn-role-toggle-id" value="${escapeAttr(button.roleId || '')}"></div>
+        </div>
+        <button class="btn danger" type="button" data-del>Удалить</button>
+      `;
+
+      const [labelInput, roleInput] = row.querySelectorAll('input');
+      labelInput.addEventListener('input', () => { button.label = labelInput.value; });
+      roleInput.addEventListener('input', () => { button.roleId = roleInput.value.trim(); });
+
+      row.querySelector('[data-del]').addEventListener('click', () => {
+        cat.buttons.splice(index, 1);
+        if (!cat.buttons.length) delete cat.buttons;
+        renderRoleToggleButtons();
+      });
+
+      box.appendChild(row);
+    });
+
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'btn';
+    add.textContent = '+ Кнопка роли';
+    if (list.length >= 5) {
+      add.disabled = true;
+      add.title = 'В одной категории не больше 5 кнопок.';
+    }
+    add.addEventListener('click', () => {
+      cat.buttons = Array.isArray(cat.buttons) ? cat.buttons : [];
+      if (cat.buttons.length >= 5) return setStatus('В одной категории не больше 5 кнопок.', 'err');
+      cat.buttons.push({ label: '༻│НОВАЯ РОЛЬ', roleId: '' });
+      renderRoleToggleButtons();
+    });
+    box.appendChild(add);
+
+    host.appendChild(box);
+  });
+}
+
+// Опции селектов внутри категорий
+function renderRoleOptionButtons() {
+  const host = document.getElementById('buttonsRolesOptions');
+  host.innerHTML = '';
+  const categories = rolesState.categories || {};
+  const keys = Object.keys(categories).filter((key) => {
+    const cat = categories[key] || {};
+    return (Array.isArray(cat.options) && cat.options.length) || cat.categoryRole;
+  });
+  if (!keys.length) return addEmptyHint(host, 'Селектов пока нет. Добавь опции на вкладке «Роли».');
+
+  keys.forEach((key) => {
+    const cat = categories[key];
+    const list = Array.isArray(cat.options) ? cat.options : [];
+    const box = makeGroupBox(`${cat.label || key} — ${list.length ? list.length + ' опц.' : 'опций нет'}`);
+    box.open = true;
+
+    if (!list.length) addEmptyHint(box, 'Опций нет.');
+
+    list.forEach((option, index) => {
+      const row = document.createElement('div');
+      row.className = 'mini';
+      row.innerHTML = `
+        <div class="grid">
+          <div class="row"><label>Код (value)</label><input type="text" data-field="btn-role-option-value" value="${escapeAttr(option.value || '')}"></div>
+          <div class="row"><label>Подпись в списке</label><input type="text" data-field="btn-role-option-label" value="${escapeAttr(option.label || '')}"></div>
+          <div class="row"><label>ID роли (пусто — убрать все)</label><input type="text" data-field="btn-role-option-id" value="${escapeAttr(option.roleId || '')}"></div>
+        </div>
+        <button class="btn danger" type="button" data-del>Удалить</button>
+      `;
+
+      const [valueInput, labelInput, roleInput] = row.querySelectorAll('input');
+      valueInput.addEventListener('input', () => { option.value = valueInput.value.trim(); });
+      labelInput.addEventListener('input', () => { option.label = labelInput.value; });
+      roleInput.addEventListener('input', () => { option.roleId = roleInput.value.trim(); });
+
+      row.querySelector('[data-del]').addEventListener('click', () => {
+        cat.options.splice(index, 1);
+        if (!cat.options.length) delete cat.options;
+        renderRoleOptionButtons();
+      });
+
+      box.appendChild(row);
+    });
+
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'btn';
+    add.textContent = '+ Опция';
+    if (list.length >= 25) {
+      add.disabled = true;
+      add.title = 'В селекте не больше 25 опций.';
+    }
+    add.addEventListener('click', () => {
+      cat.options = Array.isArray(cat.options) ? cat.options : [];
+      if (cat.options.length >= 25) return setStatus('В селекте не больше 25 опций.', 'err');
+      cat.options.push({ value: `OPT${cat.options.length + 1}`, label: '𝄢 ❔ Новая опция', roleId: '' });
+      renderRoleOptionButtons();
+    });
+    box.appendChild(add);
+
+    host.appendChild(box);
+  });
+}
+
+async function saveButtons() {
+  if (!state || !rolesState) return;
+
+  // Общие поля берём из вкладок, чтобы не потерять правки цвета и текстов
+  state.color = document.getElementById('color').value.trim() || '#262B64';
+  state.bannerUrl = document.getElementById('bannerUrl').value.trim();
+
+  rolesState.color = document.getElementById('rolesColor').value.trim() || '#262B64';
+  rolesState.author = document.getElementById('rolesAuthor').value.trim();
+  rolesState.main = rolesState.main || {};
+  rolesState.main.text = document.getElementById('rolesMainText').value;
+  rolesState.main.image = document.getElementById('rolesMainImage').value.trim();
+
+  if ((rolesState.main.text || '').length > 4096) {
+    setStatus('Текст главного меню ролей больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+
+  for (const section of Object.values(state.sections || {})) {
+    if ((section.text || '').length > 4096) {
+      setStatus('Текст раздела больше 4096 символов — Discord не примет.', 'err');
+      return;
+    }
+    if (Array.isArray(section.buttons) && section.buttons.length === 0) delete section.buttons;
+  }
+
+  for (const cat of Object.values(rolesState.categories || {})) {
+    if ((cat.text || '').length > 4096) {
+      setStatus('Текст категории больше 4096 символов — Discord не примет.', 'err');
+      return;
+    }
+    if (Array.isArray(cat.extraRoles) && cat.extraRoles.length === 0) delete cat.extraRoles;
+    if (Array.isArray(cat.buttons) && cat.buttons.length === 0) delete cat.buttons;
+    if (Array.isArray(cat.options) && cat.options.length === 0) delete cat.options;
+  }
+
+  setStatus('Сохраняю...');
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/save-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: state, roles: rolesState }),
+    });
+    const data = await res.json();
+    if (data.ok) setStatus(data.message, 'ok');
+    else setStatus('Ошибка: ' + (data.error || 'неизвестно'), 'err');
+  } catch (err) {
+    setStatus('Ошибка сети: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Эмодзи
 // ---------------------------------------------------------------------------
 function rememberField(event) {
@@ -683,6 +1124,11 @@ document.getElementById('emojiFilter').addEventListener('input', (event) => {
 // Сохранение
 // ---------------------------------------------------------------------------
 document.getElementById('saveBtn').addEventListener('click', async () => {
+  if (activeTab === 'buttons') {
+    await saveButtons();
+    return;
+  }
+
   if (activeTab === 'roles') {
     await saveRoles();
     return;

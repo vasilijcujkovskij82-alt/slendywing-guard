@@ -123,7 +123,8 @@ function commitAndPush(files, message) {
   if (!add.ok) return { ok: false, error: add.out };
 
   const commit = runGit(['commit', '-m', message]);
-  const nothingToCommit = !commit.ok && /nothing to commit/i.test(commit.out);
+  const nothingToCommit =
+    !commit.ok && /nothing to commit|nothing added to commit|no changes added to commit/i.test(commit.out);
 
   if (!commit.ok && !nothingToCommit) return { ok: false, error: commit.out };
   if (nothingToCommit) {
@@ -229,6 +230,51 @@ const server = http.createServer((req, res) => {
       }
 
       const result = commitAndPush(['roles.json'], 'Update role menu via editor');
+      return send(res, result.ok ? 200 : 500, JSON.stringify(result));
+    });
+
+    return;
+  }
+
+  // Сохранение сразу двух файлов — используется вкладкой «Кнопки»
+  if (req.method === 'POST' && url.pathname === '/api/save-all') {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 4_000_000) req.destroy();
+    });
+
+    req.on('end', () => {
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Некорректный JSON' }));
+      }
+
+      const content = data?.content;
+      const roles = data?.roles;
+
+      if (!content || typeof content !== 'object' || !content.sections || typeof content.sections !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля content.sections' }));
+      }
+
+      if (!roles || typeof roles !== 'object' || !roles.main || typeof roles.main !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля roles.main' }));
+      }
+
+      if (!roles.categories || typeof roles.categories !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля roles.categories' }));
+      }
+
+      try {
+        fs.writeFileSync(CONTENT_PATH, JSON.stringify(content, null, 2), 'utf8');
+        fs.writeFileSync(ROLES_PATH, JSON.stringify(roles, null, 2), 'utf8');
+      } catch (err) {
+        return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+      }
+
+      const result = commitAndPush(['content.json', 'roles.json'], 'Update buttons via editor');
       return send(res, result.ok ? 200 : 500, JSON.stringify(result));
     });
 
