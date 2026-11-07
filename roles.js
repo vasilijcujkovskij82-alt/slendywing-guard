@@ -229,8 +229,14 @@ async function toggleRole(interaction, roleId, categoryKey = '') {
         flags: MessageFlags.Ephemeral,
       });
     } else {
+      // Обычные роли оформляем так же, как теги: эмбед вместо крупного заголовка
       await interaction.reply({
-        content: has ? `# Роль снята\n${role}` : `# Роль получена\n${role}`,
+        embeds: [
+          responseEmbed(
+            interaction,
+            has ? `**Роль снята.**\n${role}` : `**Роль получена.**\n${role}`
+          ),
+        ],
         flags: MessageFlags.Ephemeral,
       });
     }
