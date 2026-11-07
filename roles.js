@@ -229,12 +229,13 @@ async function toggleRole(interaction, roleId, categoryKey = '') {
         flags: MessageFlags.Ephemeral,
       });
     } else {
-      // Обычные роли оформляем так же, как теги: эмбед вместо крупного заголовка
+      // Обычные роли оформляем так же, как теги: эмбед вместо крупного заголовка.
+      // Название роли выводим обычным текстом, без <@&id>, чтобы не было пинга.
       await interaction.reply({
         embeds: [
           responseEmbed(
             interaction,
-            has ? `**Роль снята.**\n${role}` : `**Роль получена.**\n${role}`
+            has ? `**Роль снята.**\n**${role.name}**` : `**Роль получена.**\n**${role.name}**`
           ),
         ],
         flags: MessageFlags.Ephemeral,
@@ -293,8 +294,15 @@ async function pickColor(interaction, key = 'colors') {
     if (categoryRole && !member.roles.cache.has(categoryRole)) toAdd.push(categoryRole);
     await member.roles.add(toAdd, 'Меню ролей: выбор цвета');
 
+    // Название роли — обычным текстом, без упоминания, чтобы не пинговать
+    let chosenRole = interaction.guild?.roles?.cache?.get(chosen.roleId);
+    if (!chosenRole && interaction.guild) {
+      chosenRole = await interaction.guild.roles.fetch(chosen.roleId).catch(() => null);
+    }
+    const chosenName = chosenRole?.name || 'выбранный цвет';
+
     await interaction.reply({
-      embeds: [responseEmbed(interaction, `𝄢 ✅ │ **Успешно установлена цветная роль <@&${chosen.roleId}>**`, true)],
+      embeds: [responseEmbed(interaction, `𝄢 ✅ │ **Успешно установлена цветная роль ${chosenName}**`, true)],
       flags: MessageFlags.Ephemeral,
     });
   } catch (err) {
