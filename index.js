@@ -448,10 +448,14 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    // roletoggle:<id> — выдать/снять роль по клику
+    // roletoggle:<категория>:<id> — выдать/снять роль по клику
     if (id.startsWith('roletoggle:')) {
       try {
-        await roles.toggleRole(interaction, id.slice(11));
+        const rest = id.slice(11);
+        const sep = rest.indexOf(':');
+        const categoryKey = sep === -1 ? '' : rest.slice(0, sep);
+        const roleId = sep === -1 ? rest : rest.slice(sep + 1);
+        await roles.toggleRole(interaction, roleId, categoryKey);
       } catch (err) {
         console.log(`  [!] Ошибка выдачи роли: ${err.message}`);
       }

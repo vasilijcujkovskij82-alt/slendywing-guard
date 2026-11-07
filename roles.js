@@ -26,7 +26,6 @@ const {
 const emojis = require('./emojis');
 
 const ROLES_PATH = path.join(__dirname, 'roles.json');
-const BACK_LABEL = '༻↩│НАЗАД';
 
 const FALLBACK = {
   color: '#262B64',
@@ -71,15 +70,18 @@ function parseColor(value) {
 // ---------------------------------------------------------------------------
 function embedFor(interaction, text, image) {
   const data = read();
+  const icon = interaction.guild?.iconURL({ size: 256 }) ?? undefined;
 
   const embed = new EmbedBuilder()
     .setColor(parseColor(data.color))
     .setAuthor({
       name: data.author || '༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺',
-      iconURL: interaction.guild?.iconURL({ size: 256 }) ?? undefined,
+      iconURL: icon,
     })
     .setDescription(emojis.resolve(String(text || ' ')));
 
+  // Миниатюрная аватарка сервера в правом верхнем углу карточки
+  if (icon) embed.setThumbnail(icon);
   if (image) embed.setImage(image);
   return embed;
 }
@@ -110,7 +112,7 @@ function categoryRows(interaction, key) {
   if (buttons.length) {
     const list = buttons.slice(0, 5).map((button) =>
       new ButtonBuilder()
-        .setCustomId(`roletoggle:${button.roleId}`)
+        .setCustomId(`roletoggle:${key}:${button.roleId}`)
         .setLabel(String(button.label || 'РОЛЬ').slice(0, 80))
         .setStyle(ButtonStyle.Secondary)
     );
@@ -133,15 +135,7 @@ function categoryRows(interaction, key) {
     rows.push(new ActionRowBuilder().addComponents(menu));
   }
 
-  // Кнопка «Назад» — возвращает в главное меню
-  if (rows.length < 5) {
-    rows.push(
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('rolemenu:main').setLabel(BACK_LABEL).setStyle(ButtonStyle.Secondary)
-      )
-    );
-  }
-
+  // Кнопка «Назад» больше не нужна: категории открываются с главной карточки
   return { embeds: [embedFor(interaction, cat.text, cat.image)], components: rows };
 }
 
@@ -163,6 +157,21 @@ function isEphemeralMessage(interaction) {
   return (Number(flags) & MessageFlags.Ephemeral) !== 0;
 }
 
+// Небольшой эмбед для ответов «роль/тег/цвет изменён»
+function responseEmbed(interaction, text, withThumbnail = false) {
+  const data = read();
+  const embed = new EmbedBuilder()
+    .setColor(parseColor(data.color))
+    .setDescription(emojis.resolve(String(text || ' ')));
+
+  if (withThumbnail) {
+    const icon = interaction.guild?.iconURL({ size: 256 });
+    if (icon) embed.setThumbnail(icon);
+  }
+
+  return embed;
+}
+
 async function respond(interaction, view) {
   // Если категория уже открыта невидимым сообщением — просто обновляем его.
   // Публичную карточку не трогаем: на неё отвечаем отдельным эфемерным сообщением.
@@ -182,7 +191,7 @@ async function showMenu(interaction, key) {
 // ---------------------------------------------------------------------------
 // Выдача и снятие обычных ролей
 // ---------------------------------------------------------------------------
-async function toggleRole(interaction, roleId) {
+async function toggleRole(interaction, roleId, categoryKey = '') {
   const guild = interaction.guild;
   const member = interaction.member;
 
@@ -200,6 +209,7 @@ async function toggleRole(interaction, roleId) {
   }
 
   const has = member.roles.cache.has(roleId);
+  const isTag = categoryKey === 'tags';
 
   try {
     if (has) {
@@ -208,10 +218,18 @@ async function toggleRole(interaction, roleId) {
       await member.roles.add(roleId, 'Меню ролей: выдача роли');
     }
 
-    await interaction.reply({
-      content: has ? `# Роль снята\n${role}` : `# Роль получена\n${role}`,
-      flags: MessageFlags.Ephemeral,
-    });
+    if (isTag) {
+      // Теги отвечают так же, как в JuniperBot: небольшой эмбед с текстом
+      await interaction.reply({
+        embeds: [responseEmbed(interaction, has ? '**Тег участника снят.**' : '**Тег участника получен.**')],
+        flags: MessageFlags.Ephemeral,
+      });
+    } else {
+      await interaction.reply({
+        content: has ? `# Роль снята\n${role}` : `# Роль получена\n${role}`,
+        flags: MessageFlags.Ephemeral,
+      });
+    }
   } catch (err) {
     await interaction
       .reply({
@@ -251,7 +269,7 @@ async function pickColor(interaction, key = 'colors') {
       if (toRemove.length) await member.roles.remove(toRemove, 'Меню ролей: сброс цвета');
 
       await interaction.reply({
-        content: '𝄢 ✅ │ **Цветные роли убраны из вашего профиля**',
+        embeds: [responseEmbed(interaction, '𝄢 ✅ │ **Цветные роли убраны из вашего профиля**', true)],
         flags: MessageFlags.Ephemeral,
       });
       return;
@@ -266,7 +284,7 @@ async function pickColor(interaction, key = 'colors') {
     await member.roles.add(toAdd, 'Меню ролей: выбор цвета');
 
     await interaction.reply({
-      content: `𝄢 ✅ │ **Успешно установлена цветная роль <@&${chosen.roleId}>**`,
+      embeds: [responseEmbed(interaction, `𝄢 ✅ │ **Успешно установлена цветная роль <@&${chosen.roleId}>**`, true)],
       flags: MessageFlags.Ephemeral,
     });
   } catch (err) {
