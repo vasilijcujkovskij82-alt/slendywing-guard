@@ -229,15 +229,9 @@ async function toggleRole(interaction, roleId, categoryKey = '') {
         flags: MessageFlags.Ephemeral,
       });
     } else {
-      // Обычные роли оформляем так же, как теги: эмбед вместо крупного заголовка.
-      // Название роли выводим обычным текстом, без <@&id>, чтобы не было пинга.
+      // Обычные роли: только короткий текст, без названия и упоминания роли
       await interaction.reply({
-        embeds: [
-          responseEmbed(
-            interaction,
-            has ? `**Роль снята.**\n**${role.name}**` : `**Роль получена.**\n**${role.name}**`
-          ),
-        ],
+        embeds: [responseEmbed(interaction, has ? '**Роль снята.**' : '**Роль получена.**')],
         flags: MessageFlags.Ephemeral,
       });
     }
