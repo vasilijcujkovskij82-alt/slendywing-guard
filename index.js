@@ -6,6 +6,7 @@ const nav = require('./navigation'); // тексты перечитываютс�
 const emojis = require('./emojis');  // :name: -> <:name:id> для эмодзи с других серверов
 const buttons = require('./buttons'); // кнопки главной карточки и разделов
 const roles = require('./roles');     // меню ролей (/роли)
+const ads = require('./ads');         // реклама (/пиар)
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -151,6 +152,11 @@ const COMMANDS = [
   {
     name: 'роли',
     description: 'Отправить меню выбора ролей в этот канал',
+    defaultMemberPermissions: '0',
+  },
+  {
+    name: 'пиар',
+    description: 'Отправить меню рекламы в этот канал',
     defaultMemberPermissions: '0',
   },
   { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
@@ -462,6 +468,26 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // adcreate — открыть окно создания рекламы
+    if (id === 'adcreate') {
+      try {
+        await ads.openModal(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка окна рекламы: ${err.message}`);
+      }
+      return;
+    }
+
+    // addelete:<id автора> — удалить публикацию (автор или модератор)
+    if (id.startsWith('addelete:')) {
+      try {
+        await ads.deleteAd(interaction, id.slice(9));
+      } catch (err) {
+        console.log(`  [!] Ошибка удаления рекламы: ${err.message}`);
+      }
+      return;
+    }
+
     return;
   }
 
@@ -472,6 +498,18 @@ client.on('interactionCreate', async (interaction) => {
         await roles.pickColor(interaction, interaction.customId.slice(10));
       } catch (err) {
         console.log(`  [!] Ошибка выбора цвета: ${err.message}`);
+      }
+    }
+    return;
+  }
+
+  // Окно создания рекламы
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'admodal') {
+      try {
+        await ads.submitAd(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка публикации рекламы: ${err.message}`);
       }
     }
     return;
@@ -505,6 +543,13 @@ client.on('interactionCreate', async (interaction) => {
       // Отвечаем невидимо, а карточку меню ролей отправляем обычным сообщением
       await interaction.reply({ content: 'Меню ролей отправлено 👇', flags: MessageFlags.Ephemeral });
       await interaction.channel.send(roles.mainView(interaction));
+      return;
+    }
+
+    if (interaction.commandName === 'пиар') {
+      // Отвечаем невидимо, а карточку рекламы отправляем обычным сообщением
+      await interaction.reply({ content: 'Меню рекламы отправлено 👇', flags: MessageFlags.Ephemeral });
+      await interaction.channel.send(ads.mainView(interaction));
       return;
     }
 

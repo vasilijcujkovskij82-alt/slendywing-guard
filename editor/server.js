@@ -11,6 +11,7 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.join(__dirname, '..');
 const CONTENT_PATH = path.join(ROOT, 'content.json');
 const ROLES_PATH = path.join(ROOT, 'roles.json');
+const ADS_PATH = path.join(ROOT, 'ads.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = 3060;
 
@@ -236,7 +237,51 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Сохранение сразу двух файлов — используется вкладкой «Кнопки»
+  if (req.method === 'GET' && url.pathname === '/api/ads') {
+    try {
+      return send(res, 200, fs.readFileSync(ADS_PATH, 'utf8'));
+    } catch (err) {
+      return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/ads') {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 2_000_000) req.destroy();
+    });
+
+    req.on('end', () => {
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Некорректный JSON' }));
+      }
+
+      if (!data || typeof data !== 'object' || !data.main || typeof data.main !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля main' }));
+      }
+
+      if (!data.publication || typeof data.publication !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля publication' }));
+      }
+
+      try {
+        fs.writeFileSync(ADS_PATH, JSON.stringify(data, null, 2), 'utf8');
+      } catch (err) {
+        return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+      }
+
+      const result = commitAndPush(['ads.json'], 'Update ads via editor');
+      return send(res, result.ok ? 200 : 500, JSON.stringify(result));
+    });
+
+    return;
+  }
+
+  // Сохранение сразу нескольких файлов — используется вкладкой «Кнопки»
   if (req.method === 'POST' && url.pathname === '/api/save-all') {
     let body = '';
     req.on('data', (chunk) => {
@@ -254,6 +299,7 @@ const server = http.createServer((req, res) => {
 
       const content = data?.content;
       const roles = data?.roles;
+      const ads = data?.ads;
 
       if (!content || typeof content !== 'object' || !content.sections || typeof content.sections !== 'object') {
         return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля content.sections' }));
@@ -267,14 +313,26 @@ const server = http.createServer((req, res) => {
         return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля roles.categories' }));
       }
 
+      if (ads && (typeof ads !== 'object' || !ads.main || typeof ads.main !== 'object')) {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля ads.main' }));
+      }
+
+      if (ads && (!ads.publication || typeof ads.publication !== 'object')) {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля ads.publication' }));
+      }
+
       try {
         fs.writeFileSync(CONTENT_PATH, JSON.stringify(content, null, 2), 'utf8');
         fs.writeFileSync(ROLES_PATH, JSON.stringify(roles, null, 2), 'utf8');
+        if (ads) fs.writeFileSync(ADS_PATH, JSON.stringify(ads, null, 2), 'utf8');
       } catch (err) {
         return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
       }
 
-      const result = commitAndPush(['content.json', 'roles.json'], 'Update buttons via editor');
+      const files = ['content.json', 'roles.json'];
+      if (ads) files.push('ads.json');
+
+      const result = commitAndPush(files, 'Update buttons via editor');
       return send(res, result.ok ? 200 : 500, JSON.stringify(result));
     });
 

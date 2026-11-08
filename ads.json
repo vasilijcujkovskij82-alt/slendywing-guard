@@ -1,0 +1,30 @@
+{
+  "color": "#262B64",
+  "author": "༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺",
+  "main": {
+    "text": "# ༻РЕКЛАМА༺\n> ### 𝄢❔│ Это система рекламирования различного рода соц сетей!\n\n> ## 𝄢 ✅ │ Для того, что бы прорекламировать, нажмите на кнопку ➕ ниже.\n# ──༺༻──",
+    "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/ads-banner.png"
+  },
+  "button": {
+    "label": "➕"
+  },
+  "deleteButton": {
+    "emoji": "🗑️"
+  },
+  "modal": {
+    "title": "Реклама",
+    "linkLabel": "Ссылка",
+    "descriptionLabel": "Описание",
+    "imageLabel": "Изображение"
+  },
+  "publication": {
+    "text": "# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}\n\n{description}"
+  },
+  "moderatorRoles": [
+    "1294382199713300510",
+    "1283718836763234387"
+  ],
+  "publishedText": "Реклама опубликована 👇",
+  "deletedText": "Реклама удалена.",
+  "deniedText": "### Ошибка доступа"
+}

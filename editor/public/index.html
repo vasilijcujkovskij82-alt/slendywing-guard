@@ -63,6 +63,7 @@
     <button class="tab active" data-tab="nav" type="button">Навигация</button>
     <button class="tab" data-tab="roles" type="button">Роли</button>
     <button class="tab" data-tab="buttons" type="button">Кнопки</button>
+    <button class="tab" data-tab="ads" type="button">Реклама</button>
   </div>
   <span id="status" class="status"></span>
   <button class="btn" id="addBtn" type="button">+ Раздел</button>
@@ -145,9 +146,9 @@
       <h2>Все кнопки</h2>
       <div class="hint" style="margin:0">
         Здесь собраны все кнопки бота: главная карточка навигации, кнопки внутри разделов,
-        кнопки меню ролей, кнопки ролей и опции селектов. Всё, что ты добавишь на вкладках
-        «Навигация» и «Роли», появится здесь автоматически. Сохранение обновляет сразу
-        <b>content.json</b> и <b>roles.json</b>.
+        кнопки меню ролей, кнопки ролей, опции селектов и кнопки рекламы. Всё, что ты добавишь
+        на вкладках «Навигация», «Роли» и «Реклама», появится здесь автоматически. Сохранение
+        обновляет сразу <b>content.json</b>, <b>roles.json</b> и <b>ads.json</b>.
       </div>
     </div>
 
@@ -175,12 +176,98 @@
       <h2>Меню ролей · опции селекта</h2>
       <div id="buttonsRolesOptions"></div>
     </div>
+
+    <div class="card">
+      <h2>Реклама · кнопки</h2>
+      <div id="buttonsAds"></div>
+    </div>
+  </div>
+
+  <div id="adsPanel" hidden>
+    <div class="card">
+      <h2>Реклама · основное</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Цвет рамочки (hex)</label>
+          <input type="text" id="adsColor" placeholder="#262B64">
+        </div>
+        <div class="row">
+          <label>Автор карточки</label>
+          <input type="text" id="adsAuthor" placeholder="༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺">
+        </div>
+      </div>
+      <div class="row">
+        <label>Текст главной карточки</label>
+        <textarea id="adsMainText" data-field="ads-main-text"></textarea>
+        <div class="counter" id="adsMainCounter">0 / 4096</div>
+      </div>
+      <div class="row">
+        <label>Панорамная картинка (только на главной карточке)</label>
+        <input type="text" id="adsMainImage" placeholder="https://...">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Кнопки</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Кнопка «плюс»</label>
+          <input type="text" id="adsButtonLabel" placeholder="➕">
+        </div>
+        <div class="row">
+          <label>Мусорный бак на публикациях</label>
+          <input type="text" id="adsDeleteEmoji" placeholder="🗑️">
+        </div>
+      </div>
+      <div class="hint">«Плюс» есть на главной карточке и на каждой публикации. «Мусорный бак» — только на публикациях.</div>
+    </div>
+
+    <div class="card">
+      <h2>Окно рекламы</h2>
+      <div class="grid">
+        <div class="row"><label>Заголовок окна</label><input type="text" id="adsModalTitle" placeholder="Реклама"></div>
+        <div class="row"><label>Поле «Ссылка»</label><input type="text" id="adsLinkLabel" placeholder="Ссылка"></div>
+        <div class="row"><label>Поле «Описание»</label><input type="text" id="adsDescLabel" placeholder="Описание"></div>
+        <div class="row"><label>Поле «Изображение»</label><input type="text" id="adsImageLabel" placeholder="Изображение"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Публикация</h2>
+      <div class="row">
+        <label>Текст публикации (markdown Discord)</label>
+        <textarea id="adsPubText" data-field="ads-pub-text" style="min-height:170px"></textarea>
+        <div class="counter" id="adsPubCounter">0 / 4096</div>
+      </div>
+      <div class="hint">
+        Плейсхолдеры: <b>{link}</b> — ссылка, <b>{member}</b> — упоминание автора,
+        <b>{description}</b> — описание, <b>{displayName}</b> — имя на сервере,
+        <b>{username}</b> — юзернейм, <b>{image}</b> — ссылка на картинку.
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label>Роли модераторов, которые могут удалять рекламу (ID через запятую)</label>
+        <input type="text" id="adsModRoles" placeholder="1294382199713300510">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Сообщения</h2>
+      <div class="grid">
+        <div class="row"><label>После публикации</label><input type="text" id="adsPublishedText" placeholder="Реклама опубликована 👇"></div>
+        <div class="row"><label>После удаления</label><input type="text" id="adsDeletedText" placeholder="Реклама удалена."></div>
+      </div>
+      <div class="row">
+        <label>Нет прав на удаление</label>
+        <input type="text" id="adsDeniedText" placeholder="### Ошибка доступа">
+      </div>
+    </div>
   </div>
 </main>
 
 <script>
 let state = null;
 let rolesState = null;
+let adsState = null;
 let activeTab = 'nav';
 let allEmojis = [];
 let lastField = null;
@@ -203,6 +290,7 @@ function switchTab(tab) {
   document.getElementById('navPanel').hidden = tab !== 'nav';
   document.getElementById('rolesPanel').hidden = tab !== 'roles';
   document.getElementById('buttonsPanel').hidden = tab !== 'buttons';
+  document.getElementById('adsPanel').hidden = tab !== 'ads';
   document.getElementById('addBtn').hidden = tab !== 'nav';
   document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
 
@@ -215,6 +303,13 @@ function switchTab(tab) {
   if (tab === 'roles' && !rolesState) loadRoles();
   else if (changed && tab === 'roles' && rolesState) renderRoleCategories();
   if (changed && tab === 'buttons') loadButtons();
+  if (tab === 'ads') {
+    if (!adsState) loadAds();
+    else if (changed) {
+      fillAdsDom();
+      setStatus('Реклама загружена', 'ok');
+    }
+  }
 }
 
 document.querySelectorAll('.tab').forEach((btn) => {
@@ -653,6 +748,147 @@ async function saveRoles() {
 }
 
 // ---------------------------------------------------------------------------
+// Реклама (/пиар)
+// ---------------------------------------------------------------------------
+let adsBindingsReady = false;
+
+function parseIdList(text) {
+  return String(text || '')
+    .split(/[\s,;]+/)
+    .map((part) => part.trim())
+    .filter((part) => /^\d{5,25}$/.test(part));
+}
+
+function updateAdsCounters() {
+  const main = document.getElementById('adsMainText');
+  const mainCounter = document.getElementById('adsMainCounter');
+  if (main && mainCounter) {
+    mainCounter.textContent = `${main.value.length} / 4096`;
+    mainCounter.style.color = main.value.length > 4096 ? '#f08a8a' : '';
+  }
+
+  const pub = document.getElementById('adsPubText');
+  const pubCounter = document.getElementById('adsPubCounter');
+  if (pub && pubCounter) {
+    pubCounter.textContent = `${pub.value.length} / 4096`;
+    pubCounter.style.color = pub.value.length > 4096 ? '#f08a8a' : '';
+  }
+}
+
+function fillAdsDom() {
+  if (!adsState) return;
+
+  const values = {
+    adsColor: adsState.color || '#262B64',
+    adsAuthor: adsState.author || '',
+    adsMainText: adsState.main?.text || '',
+    adsMainImage: adsState.main?.image || '',
+    adsButtonLabel: adsState.button?.label || '➕',
+    adsDeleteEmoji: adsState.deleteButton?.emoji || '🗑️',
+    adsModalTitle: adsState.modal?.title || '',
+    adsLinkLabel: adsState.modal?.linkLabel || '',
+    adsDescLabel: adsState.modal?.descriptionLabel || '',
+    adsImageLabel: adsState.modal?.imageLabel || '',
+    adsPubText: adsState.publication?.text || '',
+    adsModRoles: (adsState.moderatorRoles || []).join(', '),
+    adsPublishedText: adsState.publishedText || '',
+    adsDeletedText: adsState.deletedText || '',
+    adsDeniedText: adsState.deniedText || '',
+  };
+
+  for (const [id, value] of Object.entries(values)) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  }
+
+  updateAdsCounters();
+}
+
+async function loadAds() {
+  setStatus('Загружаю рекламу...');
+  try {
+    const res = await fetch('/api/ads');
+    const data = await res.json();
+    if (data && data.ok === false) {
+      setStatus('Реклама: ' + (data.error || 'ошибка'), 'err');
+      return;
+    }
+    adsState = data;
+  } catch (err) {
+    setStatus('Реклама не загрузилась: ' + err.message, 'err');
+    return;
+  }
+
+  fillAdsDom();
+  setStatus('Реклама загружена', 'ok');
+}
+
+function bindAdsFields() {
+  if (adsBindingsReady) return;
+  adsBindingsReady = true;
+
+  const fields = {
+    adsColor: (value) => { adsState.color = value.trim() || '#262B64'; },
+    adsAuthor: (value) => { adsState.author = value; },
+    adsMainText: (value) => { adsState.main = adsState.main || {}; adsState.main.text = value; },
+    adsMainImage: (value) => { adsState.main = adsState.main || {}; adsState.main.image = value.trim(); },
+    adsButtonLabel: (value) => { adsState.button = adsState.button || {}; adsState.button.label = value.trim() || '➕'; },
+    adsDeleteEmoji: (value) => { adsState.deleteButton = adsState.deleteButton || {}; adsState.deleteButton.emoji = value.trim() || '🗑️'; },
+    adsModalTitle: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.title = value; },
+    adsLinkLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.linkLabel = value; },
+    adsDescLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.descriptionLabel = value; },
+    adsImageLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.imageLabel = value; },
+    adsPubText: (value) => { adsState.publication = adsState.publication || {}; adsState.publication.text = value; },
+    adsModRoles: (value) => { adsState.moderatorRoles = parseIdList(value); },
+    adsPublishedText: (value) => { adsState.publishedText = value; },
+    adsDeletedText: (value) => { adsState.deletedText = value; },
+    adsDeniedText: (value) => { adsState.deniedText = value; },
+  };
+
+  for (const [id, apply] of Object.entries(fields)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.addEventListener('input', () => {
+      if (!adsState) return;
+      apply(el.value);
+      if (id === 'adsMainText' || id === 'adsPubText') updateAdsCounters();
+    });
+  }
+}
+
+async function saveAds() {
+  if (!adsState) return;
+
+  if ((adsState.main?.text || '').length > 4096) {
+    setStatus('Текст главной карточки больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+  if ((adsState.publication?.text || '').length > 4096) {
+    setStatus('Текст публикации больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+
+  setStatus('Сохраняю...');
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/ads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(adsState),
+    });
+    const data = await res.json();
+    if (data.ok) setStatus(data.message, 'ok');
+    else setStatus('Ошибка: ' + (data.error || 'неизвестно'), 'err');
+  } catch (err) {
+    setStatus('Ошибка сети: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Кнопки (все кнопки бота в одном месте)
 // ---------------------------------------------------------------------------
 async function loadButtons() {
@@ -666,18 +902,20 @@ async function loadButtons() {
   }
 
   if (!rolesState) await loadRoles();
-  if (!state || !rolesState) return;
+  if (!adsState) await loadAds();
+  if (!state || !rolesState || !adsState) return;
 
   renderButtons();
 }
 
 function renderButtons() {
-  if (!state || !rolesState) return;
+  if (!state || !rolesState || !adsState) return;
   renderNavMainButtons();
   renderNavExtraButtons();
   renderRoleMainButtons();
   renderRoleToggleButtons();
   renderRoleOptionButtons();
+  renderAdsButtons();
 }
 
 function addEmptyHint(host, text) {
@@ -962,8 +1200,41 @@ function renderRoleOptionButtons() {
   });
 }
 
+// Кнопки рекламы: плюс на главной/публикациях и мусорный бак
+function renderAdsButtons() {
+  const host = document.getElementById('buttonsAds');
+  host.innerHTML = '';
+  if (!adsState) return addEmptyHint(host, 'Реклама не загружена.');
+
+  const row = document.createElement('div');
+  row.className = 'mini';
+  row.innerHTML = `
+    <div class="grid">
+      <div class="row"><label>Кнопка «плюс»</label><input type="text" data-field="btn-ads-create" value="${escapeAttr(adsState.button?.label || '➕')}"></div>
+      <div class="row"><label>Мусорный бак</label><input type="text" data-field="btn-ads-delete" value="${escapeAttr(adsState.deleteButton?.emoji || '🗑️')}"></div>
+    </div>
+    <div class="hint" style="margin:0">Плюс есть на главной карточке и на каждой публикации. Мусорный бак — только на публикациях.</div>
+  `;
+
+  const [createInput, deleteInput] = row.querySelectorAll('input');
+  createInput.addEventListener('input', () => {
+    adsState.button = adsState.button || {};
+    adsState.button.label = createInput.value.trim() || '➕';
+    const field = document.getElementById('adsButtonLabel');
+    if (field) field.value = createInput.value;
+  });
+  deleteInput.addEventListener('input', () => {
+    adsState.deleteButton = adsState.deleteButton || {};
+    adsState.deleteButton.emoji = deleteInput.value.trim() || '🗑️';
+    const field = document.getElementById('adsDeleteEmoji');
+    if (field) field.value = deleteInput.value;
+  });
+
+  host.appendChild(row);
+}
+
 async function saveButtons() {
-  if (!state || !rolesState) return;
+  if (!state || !rolesState || !adsState) return;
 
   // Общие поля берём из вкладок, чтобы не потерять правки цвета и текстов
   state.color = document.getElementById('color').value.trim() || '#262B64';
@@ -977,6 +1248,16 @@ async function saveButtons() {
 
   if ((rolesState.main.text || '').length > 4096) {
     setStatus('Текст главного меню ролей больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+
+  if ((adsState.main?.text || '').length > 4096) {
+    setStatus('Текст главной карточки рекламы больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+
+  if ((adsState.publication?.text || '').length > 4096) {
+    setStatus('Текст публикации рекламы больше 4096 символов — Discord не примет.', 'err');
     return;
   }
 
@@ -1006,7 +1287,7 @@ async function saveButtons() {
     const res = await fetch('/api/save-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: state, roles: rolesState }),
+      body: JSON.stringify({ content: state, roles: rolesState, ads: adsState }),
     });
     const data = await res.json();
     if (data.ok) setStatus(data.message, 'ok');
@@ -1134,6 +1415,11 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     return;
   }
 
+  if (activeTab === 'ads') {
+    await saveAds();
+    return;
+  }
+
   state.color = document.getElementById('color').value.trim() || '#262B64';
   state.bannerUrl = document.getElementById('bannerUrl').value.trim();
 
@@ -1180,6 +1466,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 });
 
 switchTab('nav');
+bindAdsFields();
 load().catch((err) => setStatus('Не загрузилось: ' + err.message, 'err'));
 </script>
 </body>
