@@ -35,14 +35,8 @@
     },
     "tags": {
       "label": "༻🛑│ТЕГИ",
-      "text": "# ༻ВЫБОР ТЕГОВ УЧАСТНИКА༺\n\n** 𝄢❔│ Здесь вы можете забрать бесплатные теги!**\n\n# ༻ДОСТУПНЫЕ ТЕГИ༺\n\n- <@&1567578567179509942> - Угадай\n\n# ──༺༻──",
-      "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/roles-cat-tags.jpg",
-      "buttons": [
-        {
-          "label": "༻🛑│ЗАБРАТЬ ТЕГ",
-          "roleId": "1567578567179509942"
-        }
-      ]
+      "text": "# ༻ВЫБОР ТЕГОВ УЧАСТНИКА༺\n\n** 𝄢❔│ Здесь вы можете забрать бесплатные теги!**\n\n# ༻ДОСТУПНЫЕ ТЕГИ༺\n\n- Пока доступных тегов нету.\n\n# ──༺༻──",
+      "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/roles-cat-tags.jpg"
     },
     "colors": {
       "label": "༻🎨│ЦВЕТА",
