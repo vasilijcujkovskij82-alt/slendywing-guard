@@ -18,7 +18,7 @@
     "fileLabel": "Фото или видео"
   },
   "publication": {
-    "text": "🏅 │ {link}\n👤 │ {member}"
+    "text": "# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}"
   },
   "moderatorRoles": [
     "1294382199713300510",

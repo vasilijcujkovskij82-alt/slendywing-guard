@@ -41,7 +41,7 @@ const FALLBACK = {
     descriptionLabel: 'Описание',
     fileLabel: 'Фото или видео',
   },
-  publication: { text: '🏅 │ {link}\n👤 │ {member}' },
+  publication: { text: '# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}' },
   moderatorRoles: [],
   deniedText: '### Ошибка доступа',
 };
@@ -303,17 +303,23 @@ async function submitAd(interaction) {
     return;
   }
 
-  // Подтверждаем окно без видимого сообщения — Discord требует ответ на отправку
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  // Подтверждаем окно без «SlendyWing думает» — просто закрываем его
+  let usedReply = false;
+  try {
+    await interaction.deferUpdate();
+  } catch {
+    usedReply = true;
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  }
 
   try {
     const uploaded = await downloadUploadedFiles(interaction);
-    await interaction.deleteReply().catch(() => {});
+    if (usedReply) await interaction.deleteReply().catch(() => {});
     await interaction.channel.send(
       publicationView(interaction, { link, description, uploaded })
     );
   } catch (err) {
-    await interaction.deleteReply().catch(() => {});
+    if (usedReply) await interaction.deleteReply().catch(() => {});
     await interaction
       .followUp({
         content: `Не удалось опубликовать: ${err.message}`,
