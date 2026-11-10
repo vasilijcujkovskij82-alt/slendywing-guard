@@ -12,10 +12,14 @@
     "emoji": "🗑️"
   },
   "modal": {
-    "title": "Реклама",
+    "title": "Оформите пост",
     "linkLabel": "Ссылка",
     "descriptionLabel": "Описание",
-    "imageLabel": "Изображение"
+    "colorLabel": "Цвет рамки",
+    "colorDescription": "RGB, например: 38 43 100",
+    "colorDefault": "38 43 100",
+    "imageLabel": "Изображение (ссылка)",
+    "fileLabel": "Фото или видео"
   },
   "publication": {
     "text": "# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}\n\n{description}"
@@ -24,7 +28,5 @@
     "1294382199713300510",
     "1283718836763234387"
   ],
-  "publishedText": "Реклама опубликована 👇",
-  "deletedText": "Реклама удалена.",
   "deniedText": "### Ошибка доступа"
 }
