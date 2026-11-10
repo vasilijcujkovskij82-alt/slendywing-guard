@@ -4,9 +4,8 @@
 //
 // Всё оформление лежит в ads.json и перечитывается на лету:
 //   /пиар -> главная карточка с кнопкой «➕»;
-//   «➕»   -> окно «Оформите пост»: ссылка, описание, цвет рамки, ссылка на картинку
-//            и файл (фото или видео) прямо с устройства;
-//   отправка -> публикация с автором-отправителем и кнопками «➕» и «🗑️»;
+//   «➕»   -> окно «Оформите пост»: ссылка, описание и файл (фото или видео);
+//   отправка -> сообщение со ссылкой и автором + карточка с описанием и файлом;
 //   «🗑️»  -> удаление публикации автором или модератором (без лишних сообщений).
 
 const fs = require('node:fs');
@@ -28,7 +27,6 @@ const {
 const emojis = require('./emojis');
 
 const ADS_PATH = path.join(__dirname, 'ads.json');
-const DEFAULT_RGB = '38 43 100';
 const DEFAULT_COLOR = 0x262b64;
 
 const FALLBACK = {
@@ -41,13 +39,9 @@ const FALLBACK = {
     title: 'Оформите пост',
     linkLabel: 'Ссылка',
     descriptionLabel: 'Описание',
-    colorLabel: 'Цвет рамки',
-    colorDescription: 'RGB, например: 38 43 100',
-    colorDefault: DEFAULT_RGB,
-    imageLabel: 'Изображение (ссылка)',
     fileLabel: 'Фото или видео',
   },
-  publication: { text: '# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}\n\n{description}' },
+  publication: { text: '🏅 │ {link}\n👤 │ {member}' },
   moderatorRoles: [],
   deniedText: '### Ошибка доступа',
 };
@@ -77,7 +71,7 @@ function read() {
   }
 }
 
-// Цвет можно задать как RGB («38 43 100», «38, 43, 100») или как hex («#262B64»).
+// Цвет рамки: hex («#262B64») или RGB («38 43 100»).
 function parseColor(value, fallback = DEFAULT_COLOR) {
   const text = String(value ?? '').trim();
   if (!text) return fallback;
@@ -105,15 +99,6 @@ function fillTemplate(template, values) {
     /\{(link|member|description|image|username|displayName)\}/g,
     (whole, key) => (values[key] == null ? '' : String(values[key]))
   );
-}
-
-function validImageUrl(value) {
-  try {
-    const url = new URL(String(value));
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 function safeFileName(name, index) {
@@ -214,7 +199,6 @@ function mainView(interaction) {
 async function openModal(interaction) {
   const data = read();
   const modalData = data.modal || {};
-  const defaultColor = String(modalData.colorDefault || DEFAULT_RGB);
 
   const modal = new ModalBuilder()
     .setCustomId('admodal')
@@ -240,34 +224,6 @@ async function openModal(interaction) {
         .setMaxLength(2000)
     );
 
-  const colorLabel = new LabelBuilder()
-    .setLabel(String(modalData.colorLabel || FALLBACK.modal.colorLabel).slice(0, 45))
-    .setTextInputComponent(
-      new TextInputBuilder()
-        .setCustomId('ad_color')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(false)
-        .setMaxLength(30)
-        .setValue(defaultColor)
-        .setPlaceholder(defaultColor)
-    );
-
-  const colorDescription = String(
-    modalData.colorDescription || FALLBACK.modal.colorDescription
-  ).slice(0, 100);
-  if (colorDescription) colorLabel.setDescription(colorDescription);
-
-  const image = new LabelBuilder()
-    .setLabel(String(modalData.imageLabel || FALLBACK.modal.imageLabel).slice(0, 45))
-    .setTextInputComponent(
-      new TextInputBuilder()
-        .setCustomId('ad_image')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(false)
-        .setMaxLength(500)
-        .setPlaceholder('https://... (необязательно)')
-    );
-
   const file = new LabelBuilder()
     .setLabel(String(modalData.fileLabel || FALLBACK.modal.fileLabel).slice(0, 45))
     .setFileUploadComponent(
@@ -277,7 +233,7 @@ async function openModal(interaction) {
         .setMaxValues(1)
     );
 
-  modal.addComponents(link, description, colorLabel, image, file);
+  modal.addComponents(link, description, file);
 
   await interaction.showModal(modal);
 }
@@ -285,7 +241,7 @@ async function openModal(interaction) {
 // ---------------------------------------------------------------------------
 // Публикация
 // ---------------------------------------------------------------------------
-function publicationView(interaction, { link, description, image, color, uploaded = [] }) {
+function publicationView(interaction, { link, description, uploaded = [] }) {
   const data = read();
   const member = interaction.member;
   const user = interaction.user;
@@ -294,33 +250,38 @@ function publicationView(interaction, { link, description, image, color, uploade
   const displayName = member?.displayName || username;
   const avatar = member?.displayAvatarURL?.({ size: 128 }) || user?.displayAvatarURL?.({ size: 128 });
 
+  // Ссылка и автор — обычным текстом над карточкой, как в JuniperBot
   const text = fillTemplate(data.publication?.text || FALLBACK.publication.text, {
     link: link || '—',
     member: user?.id ? `<@${user.id}>` : displayName,
     description: description || '',
-    image: image || '',
+    image: '',
     username,
     displayName,
   });
 
   const embed = new EmbedBuilder()
-    // Цвет рамки выбирает автор публикации; по умолчанию — 38 43 100
-    .setColor(parseColor(color, parseColor(data.color)))
-    // Автор публикации — тот, кто её отправил, а не SlendyWing
+    .setColor(parseColor(data.color))
+    // Автор карточки — тот, кто отправил рекламу
     .setAuthor({ name: username, iconURL: avatar })
-    .setDescription(emojis.resolve(text).slice(0, 4096));
+    .setDescription(emojis.resolve(description || '').slice(0, 4096));
 
-  // Фото с устройства показываем в рамке, видео — вложением под ней
+  // Фото с устройства показываем в карточке, видео — вложением под ней
   const uploadedImage = uploaded.find(isImageFile);
   if (uploadedImage) embed.setImage(`attachment://${uploadedImage.name}`);
-  else if (image && validImageUrl(image)) embed.setImage(image);
 
   const row = new ActionRowBuilder().addComponents(
     createButton(data),
     deleteButton(data, user.id)
   );
 
-  const payload = { embeds: [embed], components: [row], allowedMentions: { parse: [] } };
+  const content = emojis.resolve(text).slice(0, 2000);
+  const payload = {
+    content: content || undefined,
+    embeds: [embed],
+    components: [row],
+    allowedMentions: { parse: [] },
+  };
   if (uploaded.length) {
     payload.files = uploaded.map(
       (file) => new AttachmentBuilder(file.attachment, { name: file.name })
@@ -333,8 +294,6 @@ function publicationView(interaction, { link, description, image, color, uploade
 async function submitAd(interaction) {
   const link = interaction.fields.getTextInputValue('ad_link').trim();
   const description = interaction.fields.getTextInputValue('ad_description').trim();
-  const color = interaction.fields.getTextInputValue('ad_color').trim();
-  const image = interaction.fields.getTextInputValue('ad_image').trim();
 
   if (!link || !description) {
     await interaction.reply({
@@ -351,7 +310,7 @@ async function submitAd(interaction) {
     const uploaded = await downloadUploadedFiles(interaction);
     await interaction.deleteReply().catch(() => {});
     await interaction.channel.send(
-      publicationView(interaction, { link, description, image, color, uploaded })
+      publicationView(interaction, { link, description, uploaded })
     );
   } catch (err) {
     await interaction.deleteReply().catch(() => {});

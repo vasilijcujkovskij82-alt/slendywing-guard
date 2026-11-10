@@ -188,7 +188,7 @@
       <h2>Реклама · основное</h2>
       <div class="grid">
         <div class="row">
-          <label>Цвет главной карточки (hex или RGB)</label>
+          <label>Цвет рамки карточек (hex или RGB)</label>
           <input type="text" id="adsColor" placeholder="#262B64 или 38 43 100">
         </div>
         <div class="row">
@@ -205,7 +205,7 @@
         <label>Панорамная картинка (только на главной карточке)</label>
         <input type="text" id="adsMainImage" placeholder="https://...">
       </div>
-      <div class="hint">Здесь — цвет главной карточки. В публикациях автор сам задаёт RGB-цвет рамки, по умолчанию 38 43 100.</div>
+      <div class="hint">Один цвет для главной карточки и карточек публикаций. По умолчанию 38 43 100.</div>
     </div>
 
     <div class="card">
@@ -229,26 +229,22 @@
         <div class="row"><label>Заголовок окна</label><input type="text" id="adsModalTitle" placeholder="Оформите пост"></div>
         <div class="row"><label>Поле «Ссылка»</label><input type="text" id="adsLinkLabel" placeholder="Ссылка"></div>
         <div class="row"><label>Поле «Описание»</label><input type="text" id="adsDescLabel" placeholder="Описание"></div>
-        <div class="row"><label>Поле «Цвет рамки»</label><input type="text" id="adsColorLabel" placeholder="Цвет рамки"></div>
-        <div class="row"><label>Подсказка к цвету</label><input type="text" id="adsColorDescription" placeholder="RGB, например: 38 43 100"></div>
-        <div class="row"><label>Цвет по умолчанию (RGB)</label><input type="text" id="adsColorDefault" placeholder="38 43 100"></div>
-        <div class="row"><label>Поле «Изображение»</label><input type="text" id="adsImageLabel" placeholder="Изображение (ссылка)"></div>
         <div class="row"><label>Поле «Фото или видео»</label><input type="text" id="adsFileLabel" placeholder="Фото или видео"></div>
       </div>
-      <div class="hint">В окне можно прикрепить фото или видео прямо с устройства. Поле цвета принимает RGB: <b>38 43 100</b>.</div>
+      <div class="hint">В окне можно прикрепить фото или видео прямо с устройства.</div>
     </div>
 
     <div class="card">
       <h2>Публикация</h2>
       <div class="row">
-        <label>Текст публикации (markdown Discord)</label>
-        <textarea id="adsPubText" data-field="ads-pub-text" style="min-height:170px"></textarea>
-        <div class="counter" id="adsPubCounter">0 / 4096</div>
+        <label>Текст над карточкой (markdown Discord)</label>
+        <textarea id="adsPubText" data-field="ads-pub-text" style="min-height:110px"></textarea>
+        <div class="counter" id="adsPubCounter">0 / 2000</div>
       </div>
       <div class="hint">
         Плейсхолдеры: <b>{link}</b> — ссылка, <b>{member}</b> — упоминание автора,
-        <b>{description}</b> — описание, <b>{displayName}</b> — имя на сервере,
-        <b>{username}</b> — юзернейм, <b>{image}</b> — ссылка на картинку.
+        <b>{displayName}</b> — имя на сервере, <b>{username}</b> — юзернейм.
+        Описание и фото всегда показываются внутри карточки под этим текстом.
       </div>
       <div class="row" style="margin-top:12px">
         <label>Роли модераторов, которые могут удалять рекламу (ID через запятую)</label>
@@ -773,8 +769,8 @@ function updateAdsCounters() {
   const pub = document.getElementById('adsPubText');
   const pubCounter = document.getElementById('adsPubCounter');
   if (pub && pubCounter) {
-    pubCounter.textContent = `${pub.value.length} / 4096`;
-    pubCounter.style.color = pub.value.length > 4096 ? '#f08a8a' : '';
+    pubCounter.textContent = `${pub.value.length} / 2000`;
+    pubCounter.style.color = pub.value.length > 2000 ? '#f08a8a' : '';
   }
 }
 
@@ -791,10 +787,6 @@ function fillAdsDom() {
     adsModalTitle: adsState.modal?.title || '',
     adsLinkLabel: adsState.modal?.linkLabel || '',
     adsDescLabel: adsState.modal?.descriptionLabel || '',
-    adsColorLabel: adsState.modal?.colorLabel || '',
-    adsColorDescription: adsState.modal?.colorDescription || '',
-    adsColorDefault: adsState.modal?.colorDefault || '',
-    adsImageLabel: adsState.modal?.imageLabel || '',
     adsFileLabel: adsState.modal?.fileLabel || '',
     adsPubText: adsState.publication?.text || '',
     adsModRoles: (adsState.moderatorRoles || []).join(', '),
@@ -842,10 +834,6 @@ function bindAdsFields() {
     adsModalTitle: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.title = value; },
     adsLinkLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.linkLabel = value; },
     adsDescLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.descriptionLabel = value; },
-    adsColorLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.colorLabel = value; },
-    adsColorDescription: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.colorDescription = value; },
-    adsColorDefault: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.colorDefault = value.trim(); },
-    adsImageLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.imageLabel = value; },
     adsFileLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.fileLabel = value; },
     adsPubText: (value) => { adsState.publication = adsState.publication || {}; adsState.publication.text = value; },
     adsModRoles: (value) => { adsState.moderatorRoles = parseIdList(value); },
@@ -870,8 +858,8 @@ async function saveAds() {
     setStatus('Текст главной карточки больше 4096 символов — Discord не примет.', 'err');
     return;
   }
-  if ((adsState.publication?.text || '').length > 4096) {
-    setStatus('Текст публикации больше 4096 символов — Discord не примет.', 'err');
+  if ((adsState.publication?.text || '').length > 2000) {
+    setStatus('Текст над карточкой больше 2000 символов — Discord не примет.', 'err');
     return;
   }
 
@@ -1263,8 +1251,8 @@ async function saveButtons() {
     return;
   }
 
-  if ((adsState.publication?.text || '').length > 4096) {
-    setStatus('Текст публикации рекламы больше 4096 символов — Discord не примет.', 'err');
+  if ((adsState.publication?.text || '').length > 2000) {
+    setStatus('Текст над карточкой рекламы больше 2000 символов — Discord не примет.', 'err');
     return;
   }
 

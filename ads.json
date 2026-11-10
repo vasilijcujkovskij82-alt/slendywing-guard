@@ -15,14 +15,10 @@
     "title": "Оформите пост",
     "linkLabel": "Ссылка",
     "descriptionLabel": "Описание",
-    "colorLabel": "Цвет рамки",
-    "colorDescription": "RGB, например: 38 43 100",
-    "colorDefault": "38 43 100",
-    "imageLabel": "Изображение (ссылка)",
     "fileLabel": "Фото или видео"
   },
   "publication": {
-    "text": "# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}\n\n{description}"
+    "text": "🏅 │ {link}\n👤 │ {member}"
   },
   "moderatorRoles": [
     "1294382199713300510",
