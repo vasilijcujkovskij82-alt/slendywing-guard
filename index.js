@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, EmbedBuilder, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, MessageFlags, EmbedBuilder, MessageType, Routes } = require('discord.js');
 const nav = require('./navigation'); // тексты перечитываются из content.json на лету
 const emojis = require('./emojis');  // :name: -> <:name:id> для эмодзи с других серверов
 const buttons = require('./buttons'); // кнопки главной карточки и разделов
@@ -33,7 +33,10 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// Нужны события сообщений: удаляем системное уведомление «ветка создана»
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+});
 
 // ---------------------------------------------------------------------------
 // Запретить роли "Нарушитель" видеть канал и заходить в него
@@ -406,6 +409,20 @@ client.on('channelCreate', async (channel) => {
 });
 
 client.on('error', (err) => console.log(`  [!] Ошибка: ${err.message}`));
+
+// Сразу убираем из канала служебное «ветка создана» для наших рекламных веток
+client.on('messageCreate', async (message) => {
+  if (!message.guild) return;
+  if (message.type !== MessageType.ThreadCreated) return;
+
+  try {
+    const threadId = message.messageReference?.channelId || message.thread?.id;
+    if (!ads.isOwnThread(threadId)) return;
+    await message.delete();
+  } catch (err) {
+    console.log(`  [!] Не удалось удалить уведомление о ветке: ${err.message}`);
+  }
+});
 
 // Появился новый сервер — сразу подтягиваем его эмодзи
 client.on('guildCreate', () => {

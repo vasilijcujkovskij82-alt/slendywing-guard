@@ -20,6 +20,10 @@
   "publication": {
     "text": "# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}"
   },
+  "thread": {
+    "name": "Обсуждение",
+    "autoArchiveDuration": 1440
+  },
   "moderatorRoles": [
     "1294382199713300510",
     "1283718836763234387"

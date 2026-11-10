@@ -5,7 +5,8 @@
 // Всё оформление лежит в ads.json и перечитывается на лету:
 //   /пиар -> главная карточка с кнопкой «➕»;
 //   «➕»   -> окно «Оформите пост»: ссылка, описание и файл (фото или видео);
-//   отправка -> сообщение со ссылкой и автором + карточка с описанием и файлом;
+//   отправка -> ответ на сообщение с «➕»: ссылка и автор + карточка с описанием и файлом,
+//               под публикацией сразу создаётся ветка обсуждения;
 //   «🗑️»  -> удаление публикации автором или модератором (без лишних сообщений).
 
 const fs = require('node:fs');
@@ -42,9 +43,30 @@ const FALLBACK = {
     fileLabel: 'Фото или видео',
   },
   publication: { text: '# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}' },
+  thread: { name: 'Обсуждение', autoArchiveDuration: 1440 },
   moderatorRoles: [],
   deniedText: '### Ошибка доступа',
 };
+
+// Ветки, созданные ботом для рекламы. Нужны, чтобы удалять только свои
+// системные сообщения «ветка создана» и не трогать чужие.
+const ownThreads = new Set();
+const OWN_THREADS_LIMIT = 1000;
+
+function rememberThread(id) {
+  const value = String(id || '').trim();
+  if (!value) return;
+  ownThreads.add(value);
+
+  while (ownThreads.size > OWN_THREADS_LIMIT) {
+    const oldest = ownThreads.values().next().value;
+    ownThreads.delete(oldest);
+  }
+}
+
+function isOwnThread(id) {
+  return ownThreads.has(String(id || '').trim());
+}
 
 let cached = null;
 let cachedMtimeMs = -1;
@@ -291,6 +313,54 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
   return payload;
 }
 
+// Отправляем публикацию ответом на сообщение, где нажали «➕».
+// Если исходное сообщение недоступно — обычным сообщением в канал.
+async function sendPublication(interaction, sourceMessage, payload) {
+  const options = {
+    ...payload,
+    // Не пингуем автора и никого другого ответом
+    allowedMentions: { parse: [], repliedUser: false },
+  };
+
+  if (sourceMessage?.reply) {
+    try {
+      return await sourceMessage.reply(options);
+    } catch (err) {
+      console.log(`  [!] Не удалось ответить на сообщение с «➕»: ${err.message}`);
+    }
+  }
+
+  return interaction.channel.send(payload);
+}
+
+function threadName(data, values) {
+  const raw = fillTemplate(data?.name || FALLBACK.thread.name, values);
+  return (raw.trim() || FALLBACK.thread.name).slice(0, 100);
+}
+
+// Создаём ветку под публикацией. Id ветки совпадает с id сообщения,
+// поэтому запоминаем его заранее — уведомление о ветке может прийти раньше ответа API.
+async function startDiscussionThread(message, values) {
+  const data = read().thread || FALLBACK.thread;
+  const duration = Number(data.autoArchiveDuration);
+
+  rememberThread(message.id);
+
+  try {
+    const thread = await message.startThread({
+      name: threadName(data, values),
+      autoArchiveDuration: [60, 1440, 4320, 10080].includes(duration) ? duration : 1440,
+      reason: 'Обсуждение рекламной публикации',
+    });
+    if (thread?.id) rememberThread(thread.id);
+    return thread;
+  } catch (err) {
+    ownThreads.delete(String(message.id));
+    console.log(`  [!] Не удалось создать ветку обсуждения: ${err.message}`);
+    return null;
+  }
+}
+
 async function submitAd(interaction) {
   const link = interaction.fields.getTextInputValue('ad_link').trim();
   const description = interaction.fields.getTextInputValue('ad_description').trim();
@@ -302,6 +372,9 @@ async function submitAd(interaction) {
     });
     return;
   }
+
+  // Сообщение с кнопкой «➕» запоминаем до deferUpdate — потом interaction.message пустеет
+  const sourceMessage = interaction.message ?? null;
 
   // Подтверждаем окно без «SlendyWing думает» — просто закрываем его
   let usedReply = false;
@@ -315,9 +388,15 @@ async function submitAd(interaction) {
   try {
     const uploaded = await downloadUploadedFiles(interaction);
     if (usedReply) await interaction.deleteReply().catch(() => {});
-    await interaction.channel.send(
-      publicationView(interaction, { link, description, uploaded })
-    );
+
+    const payload = publicationView(interaction, { link, description, uploaded });
+    const sent = await sendPublication(interaction, sourceMessage, payload);
+
+    if (sent) {
+      const username = interaction.user?.username || 'участник';
+      const displayName = interaction.member?.displayName || username;
+      await startDiscussionThread(sent, { link, username, displayName, member: username });
+    }
   } catch (err) {
     if (usedReply) await interaction.deleteReply().catch(() => {});
     await interaction
@@ -360,4 +439,6 @@ module.exports = {
   openModal,
   submitAd,
   deleteAd,
+  rememberThread,
+  isOwnThread,
 };
