@@ -24,6 +24,10 @@
     "name": "Обсуждение",
     "autoArchiveDuration": 1440
   },
+  "reactions": {
+    "like": "👍",
+    "dislike": "👎"
+  },
   "moderatorRoles": [
     "1294382199713300510",
     "1283718836763234387"

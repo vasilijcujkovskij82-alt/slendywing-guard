@@ -44,6 +44,7 @@ const FALLBACK = {
   },
   publication: { text: '# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}' },
   thread: { name: 'Обсуждение', autoArchiveDuration: 1440 },
+  reactions: { like: '👍', dislike: '👎' },
   moderatorRoles: [],
   deniedText: '### Ошибка доступа',
 };
@@ -333,6 +334,30 @@ async function sendPublication(interaction, sourceMessage, payload) {
   return interaction.channel.send(payload);
 }
 
+// Базовые реакции публикации: лайк и дизлайк.
+// Понимает юникод («👍») и кастомные эмодзи («:name:» или «<:name:id>»).
+function reactionValue(value) {
+  const parsed = emojis.forButton(value);
+  if (!parsed) return String(value || '').trim();
+  if (typeof parsed === 'string') return parsed;
+  return `<${parsed.animated ? 'a' : ''}:${parsed.name}:${parsed.id}>`;
+}
+
+async function addBaseReactions(message) {
+  const data = read().reactions || FALLBACK.reactions;
+
+  for (const value of [data.like, data.dislike]) {
+    const emoji = reactionValue(value);
+    if (!emoji) continue;
+
+    try {
+      await message.react(emoji);
+    } catch (err) {
+      console.log(`  [!] Не удалось поставить реакцию «${value}»: ${err.message}`);
+    }
+  }
+}
+
 function threadName(data, values) {
   const raw = fillTemplate(data?.name || FALLBACK.thread.name, values);
   return (raw.trim() || FALLBACK.thread.name).slice(0, 100);
@@ -393,6 +418,7 @@ async function submitAd(interaction) {
     const sent = await sendPublication(interaction, sourceMessage, payload);
 
     if (sent) {
+      await addBaseReactions(sent);
       const username = interaction.user?.username || 'участник';
       const displayName = interaction.member?.displayName || username;
       await startDiscussionThread(sent, { link, username, displayName, member: username });

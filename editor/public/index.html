@@ -224,6 +224,21 @@
     </div>
 
     <div class="card">
+      <h2>Реакции публикаций</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Лайк</label>
+          <input type="text" id="adsLikeReaction" placeholder="👍">
+        </div>
+        <div class="row">
+          <label>Дизлайк</label>
+          <input type="text" id="adsDislikeReaction" placeholder="👎">
+        </div>
+      </div>
+      <div class="hint">Бот ставит эти реакции на каждую новую публикацию. Можно юникод-эмодзи или <b>:name:</b>.</div>
+    </div>
+
+    <div class="card">
       <h2>Окно рекламы</h2>
       <div class="grid">
         <div class="row"><label>Заголовок окна</label><input type="text" id="adsModalTitle" placeholder="Оформите пост"></div>
@@ -785,6 +800,8 @@ function fillAdsDom() {
     adsMainImage: adsState.main?.image || '',
     adsButtonLabel: adsState.button?.label || '➕',
     adsDeleteEmoji: adsState.deleteButton?.emoji || '🗑️',
+    adsLikeReaction: adsState.reactions?.like || '👍',
+    adsDislikeReaction: adsState.reactions?.dislike || '👎',
     adsModalTitle: adsState.modal?.title || '',
     adsLinkLabel: adsState.modal?.linkLabel || '',
     adsDescLabel: adsState.modal?.descriptionLabel || '',
@@ -832,6 +849,8 @@ function bindAdsFields() {
     adsMainImage: (value) => { adsState.main = adsState.main || {}; adsState.main.image = value.trim(); },
     adsButtonLabel: (value) => { adsState.button = adsState.button || {}; adsState.button.label = value.trim() || '➕'; },
     adsDeleteEmoji: (value) => { adsState.deleteButton = adsState.deleteButton || {}; adsState.deleteButton.emoji = value.trim() || '🗑️'; },
+    adsLikeReaction: (value) => { adsState.reactions = adsState.reactions || {}; adsState.reactions.like = value.trim() || '👍'; },
+    adsDislikeReaction: (value) => { adsState.reactions = adsState.reactions || {}; adsState.reactions.dislike = value.trim() || '👎'; },
     adsModalTitle: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.title = value; },
     adsLinkLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.linkLabel = value; },
     adsDescLabel: (value) => { adsState.modal = adsState.modal || {}; adsState.modal.descriptionLabel = value; },
