@@ -7,6 +7,7 @@ const emojis = require('./emojis');  // :name: -> <:name:id> для эмодзи
 const buttons = require('./buttons'); // кнопки главной карточки и разделов
 const roles = require('./roles');     // меню ролей (/роли)
 const ads = require('./ads');         // реклама (/пиар)
+const games = require('./games');     // каталог игр (/игры)
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -160,6 +161,11 @@ const COMMANDS = [
   {
     name: 'пиар',
     description: 'Отправить меню рекламы в этот канал',
+    defaultMemberPermissions: '0',
+  },
+  {
+    name: 'игры',
+    description: 'Отправить меню игр в этот канал',
     defaultMemberPermissions: '0',
   },
   { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
@@ -505,6 +511,16 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // games:* — каталог игр
+    if (id.startsWith('games:')) {
+      try {
+        await games.handleButton(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка меню игр: ${err.message}`);
+      }
+      return;
+    }
+
     return;
   }
 
@@ -567,6 +583,13 @@ client.on('interactionCreate', async (interaction) => {
       // Отвечаем невидимо, а карточку рекламы отправляем обычным сообщением
       await interaction.reply({ content: 'Меню рекламы отправлено 👇', flags: MessageFlags.Ephemeral });
       await interaction.channel.send(ads.mainView(interaction));
+      return;
+    }
+
+    if (interaction.commandName === 'игры') {
+      // Карточка игр — обычным сообщением, чтобы кнопками могли пользоваться все
+      await interaction.reply({ content: 'Меню игр отправлено 👇', flags: MessageFlags.Ephemeral });
+      await interaction.channel.send(games.mainView(interaction));
       return;
     }
 

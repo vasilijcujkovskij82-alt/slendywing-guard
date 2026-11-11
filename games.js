@@ -1,0 +1,266 @@
+'use strict';
+
+// Раздел «Игры» — каталог игр по Slendytubbies.
+//
+// Всё оформление лежит в games.json и перечитывается на лету:
+//   /игры -> главная карточка с категориями;
+//   категория -> список игр;
+//   игра -> описание, ссылки и кнопка проверки достижений;
+//   проверка достижений -> отдельная карточка «есть» или «нету».
+
+const fs = require('node:fs');
+const path = require('node:path');
+const {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  MessageFlags,
+} = require('discord.js');
+
+const emojis = require('./emojis');
+
+const GAMES_PATH = path.join(__dirname, 'games.json');
+const DEFAULT_COLOR = 0x262b64;
+
+const FALLBACK = {
+  author: '༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺',
+  color: '#262B64',
+  main: { image: '', buttons: [] },
+  categories: {},
+  games: {},
+  achievements: {},
+};
+
+let cached = null;
+let cachedMtimeMs = -1;
+
+function read() {
+  let mtimeMs = -1;
+  try {
+    mtimeMs = fs.statSync(GAMES_PATH).mtimeMs;
+  } catch {
+    return FALLBACK;
+  }
+
+  if (cached && mtimeMs === cachedMtimeMs) return cached;
+
+  try {
+    const data = JSON.parse(fs.readFileSync(GAMES_PATH, 'utf8'));
+    if (!data || typeof data !== 'object' || !data.games) throw new Error('нет поля games');
+    cached = data;
+    cachedMtimeMs = mtimeMs;
+    return data;
+  } catch (err) {
+    console.log(`  [!] games.json не прочитан (${err.message}), использую предыдущие тексты.`);
+    return cached || FALLBACK;
+  }
+}
+
+// Цвет рамки: hex («#262B64») или RGB («152 115 255»).
+function parseColor(value, fallback = DEFAULT_COLOR) {
+  const text = String(value ?? '').trim();
+  if (!text) return fallback;
+
+  if (/^#?[0-9a-fA-F]{6}$/.test(text)) {
+    return Number.parseInt(text.replace('#', ''), 16);
+  }
+
+  const parts = text
+    .split(/[^0-9]+/)
+    .filter(Boolean)
+    .slice(0, 3);
+
+  if (parts.length === 3) {
+    const rgb = parts.map((part) => Math.max(0, Math.min(255, Number.parseInt(part, 10))));
+    if (rgb.every(Number.isFinite)) return (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
+  }
+
+  return fallback;
+}
+
+function chunk(list, size) {
+  const out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
+function button(label, customId) {
+  return new ButtonBuilder()
+    .setCustomId(customId)
+    .setLabel(String(label || '').slice(0, 80))
+    .setStyle(ButtonStyle.Secondary);
+}
+
+function rowsFrom(buttons) {
+  return chunk(buttons, 5).map((group) => new ActionRowBuilder().addComponents(group));
+}
+
+function author(data, interaction) {
+  return {
+    name: data.author || FALLBACK.author,
+    iconURL: interaction.guild?.iconURL({ size: 256 }) ?? undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Главная карточка
+// ---------------------------------------------------------------------------
+function mainView(interaction) {
+  const data = read();
+  const main = data.main || FALLBACK.main;
+
+  const embed = new EmbedBuilder()
+    .setColor(parseColor(data.color))
+    .setAuthor(author(data, interaction));
+
+  if (main.text) embed.setDescription(emojis.resolve(main.text).slice(0, 4096));
+  if (main.image) embed.setImage(main.image);
+
+  const buttons = (main.buttons || [])
+    .filter((item) => item && item.target)
+    .map((item) => button(item.label, `games:cat:${item.target}`));
+
+  return { embeds: [embed], components: rowsFrom(buttons) };
+}
+
+// ---------------------------------------------------------------------------
+// Категория: официальные и фанатские игры
+// ---------------------------------------------------------------------------
+function categoryView(interaction, key) {
+  const data = read();
+  const category = data.categories?.[key];
+  if (!category) return mainView(interaction);
+
+  const description = [`# ${category.title || category.label || key}`, category.text || '']
+    .filter(Boolean)
+    .join('\n\n');
+
+  const embed = new EmbedBuilder()
+    .setColor(parseColor(category.color || data.color))
+    .setAuthor(author(data, interaction))
+    .setDescription(emojis.resolve(description).slice(0, 4096));
+
+  const gameButtons = (category.games || [])
+    .map((gameKey) => {
+      const game = data.games?.[gameKey];
+      if (!game) return null;
+      return button(game.label || gameKey, `games:game:${gameKey}`);
+    })
+    .filter(Boolean);
+
+  const back = button('𝄢 │ В МЕНЮ ИГР', 'games:main');
+  const rows = rowsFrom([...gameButtons, back]);
+
+  return { embeds: [embed], components: rows };
+}
+
+// ---------------------------------------------------------------------------
+// Страница игры
+// ---------------------------------------------------------------------------
+function gameView(interaction, key) {
+  const data = read();
+  const game = data.games?.[key];
+  if (!game) return mainView(interaction);
+
+  const embed = new EmbedBuilder()
+    .setColor(parseColor(game.color || data.color))
+    .setDescription(emojis.resolve(game.text || '').slice(0, 4096));
+
+  if (game.thumbnail) embed.setThumbnail(game.thumbnail);
+  if (game.image) embed.setImage(game.image);
+
+  const check = button(
+    '𝄢 🔎│ ПРОВЕРКА НА НАЛИЧИЕ ДОСТИЖЕНИЙ',
+    `games:check:${key}`
+  );
+
+  const backCategory = button(
+    '𝄢 │ НАЗАД',
+    `games:cat:${game.category || 'main'}`
+  );
+  const backMain = button('𝄢 │ В МЕНЮ ИГР', 'games:main');
+
+  return {
+    embeds: [embed],
+    components: [
+      new ActionRowBuilder().addComponents(check),
+      new ActionRowBuilder().addComponents(backCategory, backMain),
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Проверка достижений (ответ только тому, кто нажал)
+// ---------------------------------------------------------------------------
+function achievementView(interaction, key) {
+  const data = read();
+  const game = data.games?.[key];
+  const state = game?.achievements === 'yes' ? 'yes' : 'no';
+  const achievement = data.achievements?.[state];
+  if (!achievement) return null;
+
+  const embed = new EmbedBuilder()
+    .setColor(parseColor(achievement.color || data.color))
+    .setDescription(emojis.resolve(achievement.text || '').slice(0, 4096));
+
+  if (achievement.thumbnail) embed.setThumbnail(achievement.thumbnail);
+  if (achievement.image) embed.setImage(achievement.image);
+
+  const payload = {
+    content: interaction.user?.id ? `<@${interaction.user.id}>` : undefined,
+    embeds: [embed],
+    allowedMentions: { parse: [] },
+    flags: MessageFlags.Ephemeral,
+  };
+
+  if (state === 'yes' && achievement.link?.url) {
+    const link = new ButtonBuilder()
+      .setLabel(String(achievement.link.label || '𝄢🎖️│ДОСТИЖЕНИЯ').slice(0, 80))
+      .setStyle(ButtonStyle.Link)
+      .setURL(achievement.link.url);
+
+    payload.components = [new ActionRowBuilder().addComponents(link)];
+  }
+
+  return payload;
+}
+
+// ---------------------------------------------------------------------------
+// Кнопки
+// ---------------------------------------------------------------------------
+async function handleButton(interaction) {
+  const parts = String(interaction.customId || '').split(':');
+  const action = parts[1];
+  const key = parts.slice(2).join(':');
+
+  if (action === 'main' || !action) {
+    await interaction.update(mainView(interaction));
+    return;
+  }
+
+  if (action === 'cat') {
+    await interaction.update(categoryView(interaction, key));
+    return;
+  }
+
+  if (action === 'game') {
+    await interaction.update(gameView(interaction, key));
+    return;
+  }
+
+  if (action === 'check') {
+    const payload = achievementView(interaction, key);
+    if (!payload) return;
+    await interaction.reply(payload);
+  }
+}
+
+module.exports = {
+  GAMES_PATH,
+  mainView,
+  categoryView,
+  gameView,
+  achievementView,
+  handleButton,
+};
