@@ -154,7 +154,6 @@ function categoryView(interaction, key) {
       return {
         label: String(game.label || gameKey).slice(0, 100),
         value: gameKey,
-        description: (game.achievements === 'yes' ? 'Достижение есть' : 'Достижений нету').slice(0, 100),
       };
     });
 
@@ -220,7 +219,6 @@ function achievementView(interaction, key) {
   if (achievement.image) embed.setImage(achievement.image);
 
   const payload = {
-    content: interaction.user?.id ? `<@${interaction.user.id}>` : undefined,
     embeds: [embed],
     allowedMentions: { parse: [] },
     flags: MessageFlags.Ephemeral,
