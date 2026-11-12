@@ -342,6 +342,38 @@ const server = http.createServer((req, res) => {
             JSON.stringify({ ok: false, error: `У игры ${key} в achievements нужно "yes" или "no".` })
           );
         }
+        if (game.parent !== undefined && game.parent !== '') {
+          if (typeof game.parent !== 'string' || !data.games[game.parent]) {
+            return send(
+              res,
+              400,
+              JSON.stringify({ ok: false, error: `У игры ${key} родитель ${game.parent} не найден.` })
+            );
+          }
+          if (game.parent === key) {
+            return send(
+              res,
+              400,
+              JSON.stringify({ ok: false, error: `Игра ${key} не может быть под-игрой сама у себя.` })
+            );
+          }
+        }
+      }
+
+      for (const [key, game] of Object.entries(data.games)) {
+        const seen = new Set([key]);
+        let current = game.parent;
+        while (current) {
+          if (seen.has(current)) {
+            return send(
+              res,
+              400,
+              JSON.stringify({ ok: false, error: `Замкнутая вложенность игр вокруг ${key}.` })
+            );
+          }
+          seen.add(current);
+          current = data.games[current]?.parent;
+        }
       }
 
       try {

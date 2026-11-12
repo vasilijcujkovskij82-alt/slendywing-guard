@@ -1180,19 +1180,33 @@ function renderGamesList() {
     const summary = document.createElement('summary');
     summary.style.cursor = 'pointer';
     summary.style.marginBottom = '8px';
-    summary.textContent = `${game.label || key} · ${(game.text || '').length} симв. · достижения: ${game.achievements === 'yes' ? 'есть' : 'нету'}`;
+    const summaryText = (item) =>
+      `${item.label || key} · ${(item.text || '').length} симв. · достижения: ${item.achievements === 'yes' ? 'есть' : 'нету'}${
+        item.parent ? ` · под-игра: ${games[item.parent]?.label || item.parent}` : ''
+      }`;
+    summary.textContent = summaryText(game);
     box.appendChild(summary);
 
     const body = document.createElement('div');
     const selectableCategories = categoryKeys.includes(game.category) || !game.category
       ? categoryKeys
       : [...categoryKeys, game.category];
+    const parentOptions = keys.filter((other) => other !== key);
     body.innerHTML = `
       <div class="grid">
         <div class="row"><label>Подпись кнопки</label><input type="text" data-game="label" value="${escapeAttr(game.label || '')}"></div>
         <div class="row"><label>Категория</label><select data-game="category">${selectableCategories
           .map((catKey) => `<option value="${escapeAttr(catKey)}" ${catKey === game.category ? 'selected' : ''}>${escapeHtml(gamesState.categories[catKey]?.label || catKey)}</option>`)
           .join('')}</select></div>
+      </div>
+      <div class="row">
+        <label>Под-игра для (родительская игра)</label>
+        <select data-game="parent">
+          <option value="" ${!game.parent ? 'selected' : ''}>— нет, показывать в категории —</option>
+          ${parentOptions
+            .map((other) => `<option value="${escapeAttr(other)}" ${other === game.parent ? 'selected' : ''}>${escapeHtml(games[other].label || other)}</option>`)
+            .join('')}
+        </select>
       </div>
       <div class="grid">
         <div class="row"><label>Цвет рамки</label><input type="text" data-game="color" value="${escapeAttr(game.color || '')}" placeholder="#262B64 или 152 115 255"></div>
@@ -1220,14 +1234,35 @@ function renderGamesList() {
         if (!target) return;
         const field = el.dataset.game;
         if (field === 'category') {
-          // Меняем категорию игры и сразу переносим её в списке игр категории
+          // Меняем категорию игры и переносим её в списке игр категории
           const next = el.value;
           target.category = next;
           for (const [catKey, cat] of Object.entries(gamesState.categories || {})) {
             cat.games = Array.isArray(cat.games) ? cat.games.filter((item) => item !== key) : [];
-            if (catKey === next && !cat.games.includes(key)) cat.games.push(key);
+            if (catKey === next && !target.parent && !cat.games.includes(key)) cat.games.push(key);
           }
           renderGamesCategories();
+          return;
+        }
+        if (field === 'parent') {
+          // Под-игра не показывается в списке категории, только внутри родителя
+          if (el.value) target.parent = el.value;
+          else delete target.parent;
+
+          for (const cat of Object.values(gamesState.categories || {})) {
+            cat.games = Array.isArray(cat.games) ? cat.games.filter((item) => item !== key) : [];
+          }
+
+          if (!target.parent) {
+            const cat = gamesState.categories?.[target.category];
+            if (cat) {
+              cat.games = Array.isArray(cat.games) ? cat.games : [];
+              if (!cat.games.includes(key)) cat.games.push(key);
+            }
+          }
+
+          renderGamesCategories();
+          summary.textContent = summaryText(target);
           return;
         }
         if (field === 'thumbnail' || field === 'image') target[field] = el.value.trim();
@@ -1240,7 +1275,7 @@ function renderGamesList() {
           }
         }
         if (field === 'label' || field === 'achievements' || field === 'text') {
-          summary.textContent = `${target.label || key} · ${(target.text || '').length} симв. · достижения: ${target.achievements === 'yes' ? 'есть' : 'нету'}`;
+          summary.textContent = summaryText(target);
         }
       };
       el.addEventListener('input', handler);
@@ -1329,6 +1364,24 @@ async function saveGames() {
       setStatus(`Текст игры «${game.label || key}» больше 4096 символов — Discord не примет.`, 'err');
       return;
     }
+
+    if (game.parent) {
+      if (!gamesState.games[game.parent]) {
+        setStatus(`У игры «${game.label || key}» родитель «${game.parent}» не найден.`, 'err');
+        return;
+      }
+
+      const seen = new Set([key]);
+      let current = game.parent;
+      while (current) {
+        if (seen.has(current)) {
+          setStatus(`У игр получилась замкнутая вложенность: «${game.label || key}».`, 'err');
+          return;
+        }
+        seen.add(current);
+        current = gamesState.games[current]?.parent;
+      }
+    }
   }
 
   for (const [key, cat] of Object.entries(gamesState.categories || {})) {
@@ -1339,6 +1392,14 @@ async function saveGames() {
     const unknown = (cat.games || []).filter((gameKey) => !gamesState.games[gameKey]);
     if (unknown.length) {
       setStatus(`В категории «${cat.label || key}» неизвестные игры: ${unknown.join(', ')}`, 'err');
+      return;
+    }
+    const nested = (cat.games || []).filter((gameKey) => gamesState.games[gameKey]?.parent);
+    if (nested.length) {
+      setStatus(
+        `В категории «${cat.label || key}» есть под-игры: ${nested.join(', ')}. Они должны открываться из родительской игры.`,
+        'err'
+      );
       return;
     }
   }

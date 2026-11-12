@@ -524,7 +524,7 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // Селект цветов в меню ролей
+  // Селект цветов в меню ролей и выбор игры в /игры
   if (interaction.isStringSelectMenu()) {
     if (interaction.customId.startsWith('rolecolor:')) {
       try {
@@ -532,8 +532,17 @@ client.on('interactionCreate', async (interaction) => {
       } catch (err) {
         console.log(`  [!] Ошибка выбора цвета: ${err.message}`);
       }
+      return;
     }
-    return;
+
+    if (interaction.customId.startsWith('games:')) {
+      try {
+        await games.handleButton(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка выбора игры: ${err.message}`);
+      }
+      return;
+    }
   }
 
   // Окно создания рекламы

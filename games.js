@@ -15,6 +15,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
   MessageFlags,
 } = require('discord.js');
 
@@ -141,17 +142,33 @@ function categoryView(interaction, key) {
     .setAuthor(author(data, interaction))
     .setDescription(emojis.resolve(description).slice(0, 4096));
 
-  const gameButtons = (category.games || [])
-    .map((gameKey) => {
-      const game = data.games?.[gameKey];
-      if (!game) return null;
-      return button(game.label || gameKey, `games:game:${gameKey}`);
-    })
-    .filter(Boolean);
+  const gameKeys = (category.games || []).filter((gameKey) => {
+    const game = data.games?.[gameKey];
+    return game && !game.parent;
+  });
 
-  const rows = rowsFrom(gameButtons);
+  let components = [];
+  if (gameKeys.length) {
+    const options = gameKeys.slice(0, 25).map((gameKey) => {
+      const game = data.games[gameKey];
+      return {
+        label: String(game.label || gameKey).slice(0, 100),
+        value: gameKey,
+        description: (game.achievements === 'yes' ? 'Достижение есть' : 'Достижений нету').slice(0, 100),
+      };
+    });
 
-  return { embeds: [embed], components: rows };
+    components = [
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('games:select')
+          .setPlaceholder('𝄢 │ Выбери игру')
+          .addOptions(options)
+      ),
+    ];
+  }
+
+  return { embeds: [embed], components };
 }
 
 // ---------------------------------------------------------------------------
@@ -174,9 +191,14 @@ function gameView(interaction, key) {
     `games:check:${key}`
   );
 
+  // Под-игры (например, Ø Records у Ø и ST2DR Forever у 2D Revolution)
+  const childButtons = Object.entries(data.games || {})
+    .filter(([, item]) => item && item.parent === key)
+    .map(([childKey, child]) => button(child.label || childKey, `games:game:${childKey}`));
+
   return {
     embeds: [embed],
-    components: [new ActionRowBuilder().addComponents(check)],
+    components: rowsFrom([...childButtons, check]),
   };
 }
 
@@ -237,6 +259,13 @@ async function handleButton(interaction) {
 
   if (action === 'cat') {
     await interaction.reply(ephemeral(categoryView(interaction, key)));
+    return;
+  }
+
+  if (action === 'select') {
+    const picked = interaction.values?.[0];
+    if (!picked) return;
+    await interaction.reply(ephemeral(gameView(interaction, picked)));
     return;
   }
 
