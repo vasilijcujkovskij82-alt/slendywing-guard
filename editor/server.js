@@ -12,6 +12,7 @@ const ROOT = path.join(__dirname, '..');
 const CONTENT_PATH = path.join(ROOT, 'content.json');
 const ROLES_PATH = path.join(ROOT, 'roles.json');
 const ADS_PATH = path.join(ROOT, 'ads.json');
+const GAMES_PATH = path.join(ROOT, 'games.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = 3060;
 
@@ -275,6 +276,81 @@ const server = http.createServer((req, res) => {
       }
 
       const result = commitAndPush(['ads.json'], 'Update ads via editor');
+      return send(res, result.ok ? 200 : 500, JSON.stringify(result));
+    });
+
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/games') {
+    try {
+      return send(res, 200, fs.readFileSync(GAMES_PATH, 'utf8'));
+    } catch (err) {
+      return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/games') {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 4_000_000) req.destroy();
+    });
+
+    req.on('end', () => {
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Некорректный JSON' }));
+      }
+
+      if (!data || typeof data !== 'object' || !data.main || typeof data.main !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля main' }));
+      }
+
+      if (!data.games || typeof data.games !== 'object' || Array.isArray(data.games)) {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля games' }));
+      }
+
+      if (!data.categories || typeof data.categories !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля categories' }));
+      }
+
+      if (!data.achievements || typeof data.achievements !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля achievements' }));
+      }
+
+      for (const [key, game] of Object.entries(data.games)) {
+        if (!game || typeof game !== 'object') {
+          return send(res, 400, JSON.stringify({ ok: false, error: `Игра ${key} должна быть объектом` }));
+        }
+        if (typeof game.text !== 'string') {
+          return send(res, 400, JSON.stringify({ ok: false, error: `У игры ${key} нет текста` }));
+        }
+        if (game.text.length > 4096) {
+          return send(
+            res,
+            400,
+            JSON.stringify({ ok: false, error: `Текст игры ${key} больше 4096 символов — Discord не примет.` })
+          );
+        }
+        if (game.achievements !== 'yes' && game.achievements !== 'no') {
+          return send(
+            res,
+            400,
+            JSON.stringify({ ok: false, error: `У игры ${key} в achievements нужно "yes" или "no".` })
+          );
+        }
+      }
+
+      try {
+        fs.writeFileSync(GAMES_PATH, JSON.stringify(data, null, 2) + '\n', 'utf8');
+      } catch (err) {
+        return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+      }
+
+      const result = commitAndPush(['games.json'], 'Update games catalog via editor');
       return send(res, result.ok ? 200 : 500, JSON.stringify(result));
     });
 

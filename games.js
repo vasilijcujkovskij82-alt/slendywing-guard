@@ -149,8 +149,7 @@ function categoryView(interaction, key) {
     })
     .filter(Boolean);
 
-  const back = button('𝄢 │ В МЕНЮ ИГР', 'games:main');
-  const rows = rowsFrom([...gameButtons, back]);
+  const rows = rowsFrom(gameButtons);
 
   return { embeds: [embed], components: rows };
 }
@@ -175,18 +174,9 @@ function gameView(interaction, key) {
     `games:check:${key}`
   );
 
-  const backCategory = button(
-    '𝄢 │ НАЗАД',
-    `games:cat:${game.category || 'main'}`
-  );
-  const backMain = button('𝄢 │ В МЕНЮ ИГР', 'games:main');
-
   return {
     embeds: [embed],
-    components: [
-      new ActionRowBuilder().addComponents(check),
-      new ActionRowBuilder().addComponents(backCategory, backMain),
-    ],
+    components: [new ActionRowBuilder().addComponents(check)],
   };
 }
 
@@ -227,25 +217,31 @@ function achievementView(interaction, key) {
 }
 
 // ---------------------------------------------------------------------------
-// Кнопки
+// Кнопки: любой ответ виден только тому, кто нажал (эфермерное сообщение)
 // ---------------------------------------------------------------------------
 async function handleButton(interaction) {
   const parts = String(interaction.customId || '').split(':');
   const action = parts[1];
   const key = parts.slice(2).join(':');
 
+  const ephemeral = (payload) => ({
+    ...payload,
+    allowedMentions: { parse: [] },
+    flags: MessageFlags.Ephemeral,
+  });
+
   if (action === 'main' || !action) {
-    await interaction.update(mainView(interaction));
+    await interaction.reply(ephemeral(mainView(interaction)));
     return;
   }
 
   if (action === 'cat') {
-    await interaction.update(categoryView(interaction, key));
+    await interaction.reply(ephemeral(categoryView(interaction, key)));
     return;
   }
 
   if (action === 'game') {
-    await interaction.update(gameView(interaction, key));
+    await interaction.reply(ephemeral(gameView(interaction, key)));
     return;
   }
 

@@ -28,7 +28,7 @@
   .card h3 { font-size:13px; color:var(--dim); margin:14px 0 8px; font-weight:600; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   label { display:block; font-size:12px; color:var(--dim); margin-bottom:4px; }
-  input[type=text], textarea { width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:8px 10px; font-size:13px; font-family:inherit; }
+  input[type=text], textarea, select { width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:8px 10px; font-size:13px; font-family:inherit; }
   textarea { min-height:260px; resize:vertical; font-family:ui-monospace,Consolas,monospace; font-size:12.5px; line-height:1.55; }
   input:focus, textarea:focus { outline:none; border-color:var(--accent); }
   .row { margin-bottom:12px; }
@@ -64,6 +64,7 @@
     <button class="tab" data-tab="roles" type="button">Роли</button>
     <button class="tab" data-tab="buttons" type="button">Кнопки</button>
     <button class="tab" data-tab="ads" type="button">Реклама</button>
+    <button class="tab" data-tab="games" type="button">Игры</button>
   </div>
   <span id="status" class="status"></span>
   <button class="btn" id="addBtn" type="button">+ Раздел</button>
@@ -277,12 +278,87 @@
       </div>
     </div>
   </div>
+
+  <div id="gamesPanel" hidden>
+    <div class="card">
+      <h2>Игры · главная карточка</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Автор карточки</label>
+          <input type="text" id="gamesAuthor" placeholder="༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺">
+        </div>
+        <div class="row">
+          <label>Цвет рамки (hex или RGB)</label>
+          <input type="text" id="gamesColor" placeholder="#262B64 или 38 43 100">
+        </div>
+      </div>
+      <div class="row">
+        <label>Текст главной карточки (можно оставить пустым)</label>
+        <textarea id="gamesMainText" data-field="games-main-text" style="min-height:110px"></textarea>
+        <div class="counter" id="gamesMainCounter">0 / 4096</div>
+      </div>
+      <div class="row">
+        <label>Панорамная картинка (ссылка)</label>
+        <input type="text" id="gamesMainImage" placeholder="https://...">
+      </div>
+      <div class="row">
+        <label>Кнопки категорий: Подпись|ключ (несколько — через запятую)</label>
+        <input type="text" id="gamesMainButtons" placeholder="𝄢 🔴│ ZeoWorks|zeoworks, 𝄢 🎨│ Фанатские игры|fan">
+      </div>
+      <div class="hint">Все ответы бота на кнопки игр теперь приходят только тому, кто нажал.</div>
+    </div>
+
+    <div class="card">
+      <h2>Категории</h2>
+      <div id="gamesCategories"></div>
+      <button class="btn" id="addGameCategoryBtn" type="button">+ Категория</button>
+      <div class="hint">В списке игр категории — ключи через запятую. Порядок ключей = порядок кнопок.</div>
+    </div>
+
+    <div class="card">
+      <h2>Игры</h2>
+      <div id="gamesList"></div>
+      <button class="btn" id="addGameBtn" type="button">+ Игра</button>
+      <div class="hint">Пустая миниатюра — карточка без картинки сверху справа (как у Ø Records).</div>
+    </div>
+
+    <div class="card">
+      <h2>Достижения · «есть»</h2>
+      <div class="row">
+        <label>Текст карточки</label>
+        <textarea id="achYesText" data-field="ach-yes-text" style="min-height:110px"></textarea>
+      </div>
+      <div class="grid">
+        <div class="row"><label>Цвет рамки</label><input type="text" id="achYesColor" placeholder="62 178 52"></div>
+        <div class="row"><label>Миниатюра (ссылка)</label><input type="text" id="achYesThumbnail" placeholder="https://..."></div>
+      </div>
+      <div class="row"><label>Основная картинка (ссылка)</label><input type="text" id="achYesImage" placeholder="https://..."></div>
+      <div class="grid">
+        <div class="row"><label>Подпись кнопки-ссылки</label><input type="text" id="achYesLinkLabel" placeholder="𝄢🎖️│ДОСТИЖЕНИЯ"></div>
+        <div class="row"><label>Ссылка кнопки</label><input type="text" id="achYesLinkUrl" placeholder="https://discord.gg/..."></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Достижения · «нету»</h2>
+      <div class="row">
+        <label>Текст карточки</label>
+        <textarea id="achNoText" data-field="ach-no-text" style="min-height:110px"></textarea>
+      </div>
+      <div class="grid">
+        <div class="row"><label>Цвет рамки</label><input type="text" id="achNoColor" placeholder="100 38 38"></div>
+        <div class="row"><label>Миниатюра (ссылка)</label><input type="text" id="achNoThumbnail" placeholder="https://..."></div>
+      </div>
+      <div class="row"><label>Основная картинка (ссылка)</label><input type="text" id="achNoImage" placeholder="https://..."></div>
+    </div>
+  </div>
 </main>
 
 <script>
 let state = null;
 let rolesState = null;
 let adsState = null;
+let gamesState = null;
 let activeTab = 'nav';
 let allEmojis = [];
 let lastField = null;
@@ -306,6 +382,7 @@ function switchTab(tab) {
   document.getElementById('rolesPanel').hidden = tab !== 'roles';
   document.getElementById('buttonsPanel').hidden = tab !== 'buttons';
   document.getElementById('adsPanel').hidden = tab !== 'ads';
+  document.getElementById('gamesPanel').hidden = tab !== 'games';
   document.getElementById('addBtn').hidden = tab !== 'nav';
   document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
 
@@ -323,6 +400,13 @@ function switchTab(tab) {
     else if (changed) {
       fillAdsDom();
       setStatus('Реклама загружена', 'ok');
+    }
+  }
+  if (tab === 'games') {
+    if (!gamesState) loadGames();
+    else if (changed) {
+      fillGamesDom();
+      setStatus('Игры загружены', 'ok');
     }
   }
 }
@@ -904,6 +988,382 @@ async function saveAds() {
 }
 
 // ---------------------------------------------------------------------------
+// Игры (/игры)
+// ---------------------------------------------------------------------------
+let gamesBindingsReady = false;
+
+function updateGamesMainCounter() {
+  const el = document.getElementById('gamesMainText');
+  const counter = document.getElementById('gamesMainCounter');
+  if (!el || !counter) return;
+  counter.textContent = `${el.value.length} / 4096`;
+  counter.style.color = el.value.length > 4096 ? '#f08a8a' : '';
+}
+
+function gamesAchievement(which) {
+  gamesState.achievements = gamesState.achievements || {};
+  gamesState.achievements[which] = gamesState.achievements[which] || {};
+  return gamesState.achievements[which];
+}
+
+function fillGamesDom() {
+  if (!gamesState) return;
+
+  const values = {
+    gamesAuthor: gamesState.author || '',
+    gamesColor: gamesState.color || '#262B64',
+    gamesMainImage: gamesState.main?.image || '',
+    gamesMainText: gamesState.main?.text || '',
+    gamesMainButtons: buttonsToText(gamesState.main?.buttons || []),
+    achYesText: gamesState.achievements?.yes?.text || '',
+    achYesColor: gamesState.achievements?.yes?.color || '',
+    achYesThumbnail: gamesState.achievements?.yes?.thumbnail || '',
+    achYesImage: gamesState.achievements?.yes?.image || '',
+    achYesLinkLabel: gamesState.achievements?.yes?.link?.label || '',
+    achYesLinkUrl: gamesState.achievements?.yes?.link?.url || '',
+    achNoText: gamesState.achievements?.no?.text || '',
+    achNoColor: gamesState.achievements?.no?.color || '',
+    achNoThumbnail: gamesState.achievements?.no?.thumbnail || '',
+    achNoImage: gamesState.achievements?.no?.image || '',
+  };
+
+  for (const [id, value] of Object.entries(values)) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  }
+
+  updateGamesMainCounter();
+  renderGamesCategories();
+  renderGamesList();
+}
+
+async function loadGames() {
+  setStatus('Загружаю игры...');
+  try {
+    const res = await fetch('/api/games');
+    const data = await res.json();
+    if (data && data.ok === false) {
+      setStatus('Игры: ' + (data.error || 'ошибка'), 'err');
+      return;
+    }
+    gamesState = data;
+  } catch (err) {
+    setStatus('Игры не загрузились: ' + err.message, 'err');
+    return;
+  }
+
+  gamesState.main = gamesState.main || {};
+  gamesState.main.buttons = Array.isArray(gamesState.main.buttons) ? gamesState.main.buttons : [];
+  gamesState.categories = gamesState.categories || {};
+  gamesState.games = gamesState.games || {};
+  gamesAchievement('yes');
+  gamesAchievement('no');
+
+  fillGamesDom();
+  setStatus('Игры загружены', 'ok');
+}
+
+function bindGamesFields() {
+  if (gamesBindingsReady) return;
+  gamesBindingsReady = true;
+
+  const fields = {
+    gamesAuthor: (value) => { gamesState.author = value; },
+    gamesColor: (value) => { gamesState.color = value.trim() || '#262B64'; },
+    gamesMainImage: (value) => { gamesState.main = gamesState.main || {}; gamesState.main.image = value.trim(); },
+    gamesMainText: (value) => { gamesState.main = gamesState.main || {}; gamesState.main.text = value; },
+    gamesMainButtons: (value) => { gamesState.main = gamesState.main || {}; gamesState.main.buttons = textToButtons(value); },
+    achYesText: (value) => { gamesAchievement('yes').text = value; },
+    achYesColor: (value) => { gamesAchievement('yes').color = value.trim(); },
+    achYesThumbnail: (value) => { gamesAchievement('yes').thumbnail = value.trim(); },
+    achYesImage: (value) => { gamesAchievement('yes').image = value.trim(); },
+    achYesLinkLabel: (value) => {
+      const ach = gamesAchievement('yes');
+      ach.link = ach.link || {};
+      ach.link.label = value;
+    },
+    achYesLinkUrl: (value) => {
+      const ach = gamesAchievement('yes');
+      ach.link = ach.link || {};
+      ach.link.url = value.trim();
+    },
+    achNoText: (value) => { gamesAchievement('no').text = value; },
+    achNoColor: (value) => { gamesAchievement('no').color = value.trim(); },
+    achNoThumbnail: (value) => { gamesAchievement('no').thumbnail = value.trim(); },
+    achNoImage: (value) => { gamesAchievement('no').image = value.trim(); },
+  };
+
+  for (const [id, apply] of Object.entries(fields)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.addEventListener('input', () => {
+      if (!gamesState) return;
+      apply(el.value);
+      if (id === 'gamesMainText') updateGamesMainCounter();
+    });
+  }
+}
+
+function renderGamesCategories() {
+  const host = document.getElementById('gamesCategories');
+  host.innerHTML = '';
+  if (!gamesState) return;
+
+  const categories = gamesState.categories || {};
+  const keys = Object.keys(categories);
+  if (!keys.length) return addEmptyHint(host, 'Категорий пока нет. Добавь первую кнопку главной карточки.');
+
+  keys.forEach((key) => {
+    const cat = categories[key];
+    const row = document.createElement('div');
+    row.className = 'mini';
+    row.innerHTML = `
+      <div class="section-head">
+        <h3 style="margin:0">${escapeHtml(cat.label || key)}</h3>
+        <span class="key">ключ: ${escapeHtml(key)}</span>
+        <div class="spacer"></div>
+        <button class="btn danger" type="button" data-delcat>Удалить</button>
+      </div>
+      <div class="grid">
+        <div class="row"><label>Подпись на кнопке главной карточки</label><input type="text" data-gcat="label" value="${escapeAttr(cat.label || '')}"></div>
+        <div class="row"><label>Заголовок в карточке категории</label><input type="text" data-gcat="title" value="${escapeAttr(cat.title || '')}"></div>
+      </div>
+      <div class="grid">
+        <div class="row"><label>Цвет рамки</label><input type="text" data-gcat="color" value="${escapeAttr(cat.color || '')}" placeholder="#262B64 или 38 43 100"></div>
+        <div class="row"><label>Игры категории (ключи через запятую)</label><input type="text" data-gcat="games" value="${escapeAttr((cat.games || []).join(', '))}"></div>
+      </div>
+      <div class="row">
+        <label>Текст категории (markdown Discord)</label>
+        <textarea data-gcat="text" style="min-height:120px">${escapeHtml(cat.text || '')}</textarea>
+      </div>
+    `;
+    host.appendChild(row);
+
+    row.querySelectorAll('[data-gcat]').forEach((el) => {
+      el.addEventListener('input', () => {
+        const target = gamesState.categories?.[key];
+        if (!target) return;
+        const field = el.dataset.gcat;
+        if (field === 'games') {
+          target.games = el.value.split(',').map((part) => part.trim()).filter(Boolean);
+          return;
+        }
+        target[field] = el.value;
+      });
+    });
+
+    row.querySelector('[data-delcat]').addEventListener('click', () => {
+      if (!confirm(`Удалить категорию "${cat.label || key}"? Сами игры останутся в списке.`)) return;
+      delete gamesState.categories[key];
+      renderGamesCategories();
+    });
+  });
+}
+
+function renderGamesList() {
+  const host = document.getElementById('gamesList');
+  host.innerHTML = '';
+  if (!gamesState) return;
+
+  const games = gamesState.games || {};
+  const keys = Object.keys(games);
+  if (!keys.length) return addEmptyHint(host, 'Игр пока нет. Добавь первую игру.');
+
+  const categoryKeys = Object.keys(gamesState.categories || {});
+
+  keys.forEach((key, index) => {
+    const game = games[key];
+    const box = document.createElement('details');
+    box.className = 'mini';
+    if (index === 0) box.open = true;
+
+    const summary = document.createElement('summary');
+    summary.style.cursor = 'pointer';
+    summary.style.marginBottom = '8px';
+    summary.textContent = `${game.label || key} · ${(game.text || '').length} симв. · достижения: ${game.achievements === 'yes' ? 'есть' : 'нету'}`;
+    box.appendChild(summary);
+
+    const body = document.createElement('div');
+    const selectableCategories = categoryKeys.includes(game.category) || !game.category
+      ? categoryKeys
+      : [...categoryKeys, game.category];
+    body.innerHTML = `
+      <div class="grid">
+        <div class="row"><label>Подпись кнопки</label><input type="text" data-game="label" value="${escapeAttr(game.label || '')}"></div>
+        <div class="row"><label>Категория</label><select data-game="category">${selectableCategories
+          .map((catKey) => `<option value="${escapeAttr(catKey)}" ${catKey === game.category ? 'selected' : ''}>${escapeHtml(gamesState.categories[catKey]?.label || catKey)}</option>`)
+          .join('')}</select></div>
+      </div>
+      <div class="grid">
+        <div class="row"><label>Цвет рамки</label><input type="text" data-game="color" value="${escapeAttr(game.color || '')}" placeholder="#262B64 или 152 115 255"></div>
+        <div class="row"><label>Проверка достижений</label><select data-game="achievements">
+          <option value="yes" ${game.achievements === 'yes' ? 'selected' : ''}>достижение есть</option>
+          <option value="no" ${game.achievements !== 'yes' ? 'selected' : ''}>достижений нету</option>
+        </select></div>
+      </div>
+      <div class="grid">
+        <div class="row"><label>Миниатюра (ссылка, можно пустой)</label><input type="text" data-game="thumbnail" value="${escapeAttr(game.thumbnail || '')}"></div>
+        <div class="row"><label>Основная картинка (ссылка)</label><input type="text" data-game="image" value="${escapeAttr(game.image || '')}"></div>
+      </div>
+      <div class="row">
+        <label>Текст игры (markdown Discord)</label>
+        <textarea data-game="text">${escapeHtml(game.text || '')}</textarea>
+        <div class="counter" data-game-counter>${(game.text || '').length} / 4096</div>
+      </div>
+      <button class="btn danger" type="button" data-delgame>Удалить игру</button>
+    `;
+    box.appendChild(body);
+
+    body.querySelectorAll('[data-game]').forEach((el) => {
+      const handler = () => {
+        const target = gamesState.games?.[key];
+        if (!target) return;
+        const field = el.dataset.game;
+        if (field === 'category') {
+          // Меняем категорию игры и сразу переносим её в списке игр категории
+          const next = el.value;
+          target.category = next;
+          for (const [catKey, cat] of Object.entries(gamesState.categories || {})) {
+            cat.games = Array.isArray(cat.games) ? cat.games.filter((item) => item !== key) : [];
+            if (catKey === next && !cat.games.includes(key)) cat.games.push(key);
+          }
+          renderGamesCategories();
+          return;
+        }
+        if (field === 'thumbnail' || field === 'image') target[field] = el.value.trim();
+        else target[field] = el.value;
+        if (field === 'text') {
+          const counter = body.querySelector('[data-game-counter]');
+          if (counter) {
+            counter.textContent = `${el.value.length} / 4096`;
+            counter.style.color = el.value.length > 4096 ? '#f08a8a' : '';
+          }
+        }
+        if (field === 'label' || field === 'achievements' || field === 'text') {
+          summary.textContent = `${target.label || key} · ${(target.text || '').length} симв. · достижения: ${target.achievements === 'yes' ? 'есть' : 'нету'}`;
+        }
+      };
+      el.addEventListener('input', handler);
+      el.addEventListener('change', handler);
+    });
+
+    body.querySelector('[data-delgame]').addEventListener('click', () => {
+      if (!confirm(`Удалить игру "${game.label || key}"?`)) return;
+      delete gamesState.games[key];
+      for (const cat of Object.values(gamesState.categories || {})) {
+        if (Array.isArray(cat.games)) cat.games = cat.games.filter((item) => item !== key);
+      }
+      renderGamesList();
+      renderGamesCategories();
+    });
+
+    host.appendChild(box);
+  });
+}
+
+document.getElementById('addGameCategoryBtn').addEventListener('click', () => {
+  if (!gamesState) return;
+  const key = (prompt('Ключ новой категории (латиницей), например: fan') || '').trim().toLowerCase();
+  if (!key) return;
+  if (!/^[a-z0-9_]+$/.test(key)) return alert('Только латиница, цифры и _');
+  if (gamesState.categories[key]) return alert('Такая категория уже есть');
+  if (Object.keys(gamesState.categories).length >= 5) {
+    return setStatus('На главной карточке не больше 5 кнопок-категорий.', 'err');
+  }
+
+  gamesState.categories[key] = {
+    label: `𝄢 ❔│ ${key}`,
+    title: `𝄢 ❔│ ${key}`,
+    color: '',
+    text: 'Новая категория. Отредактируй текст.',
+    games: [],
+  };
+  renderGamesCategories();
+});
+
+document.getElementById('addGameBtn').addEventListener('click', () => {
+  if (!gamesState) return;
+  const key = (prompt('Ключ новой игры (латиницей), например: st4') || '').trim();
+  if (!key) return;
+  if (!/^[A-Za-z0-9_]+$/.test(key)) return alert('Только латиница, цифры и _');
+  if (gamesState.games[key]) return alert('Такая игра уже есть');
+
+  const category = Object.keys(gamesState.categories || {})[0] || '';
+  gamesState.games[key] = {
+    category,
+    label: `𝄢 │ ${key}`,
+    color: '',
+    thumbnail: '',
+    image: '',
+    text: '# НАЗВАНИЕ ИГРЫ\n# 𝄢 ❔│Что это за игра?\n## 𝄢 👾 │ Описание игры.',
+    achievements: 'no',
+  };
+
+  if (category) {
+    const cat = gamesState.categories[category];
+    cat.games = Array.isArray(cat.games) ? cat.games : [];
+    if (!cat.games.includes(key)) cat.games.push(key);
+  }
+
+  renderGamesList();
+  renderGamesCategories();
+});
+
+async function saveGames() {
+  if (!gamesState) return;
+
+  gamesState.author = document.getElementById('gamesAuthor').value.trim();
+  gamesState.color = document.getElementById('gamesColor').value.trim() || '#262B64';
+  gamesState.main = gamesState.main || {};
+  gamesState.main.image = document.getElementById('gamesMainImage').value.trim();
+  gamesState.main.text = document.getElementById('gamesMainText').value;
+  gamesState.main.buttons = textToButtons(document.getElementById('gamesMainButtons').value);
+
+  if ((gamesState.main.text || '').length > 4096) {
+    setStatus('Текст главной карточки игр больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+
+  for (const [key, game] of Object.entries(gamesState.games || {})) {
+    if ((game.text || '').length > 4096) {
+      setStatus(`Текст игры «${game.label || key}» больше 4096 символов — Discord не примет.`, 'err');
+      return;
+    }
+  }
+
+  for (const [key, cat] of Object.entries(gamesState.categories || {})) {
+    if ((cat.text || '').length > 4096) {
+      setStatus(`Текст категории «${cat.label || key}» больше 4096 символов — Discord не примет.`, 'err');
+      return;
+    }
+    const unknown = (cat.games || []).filter((gameKey) => !gamesState.games[gameKey]);
+    if (unknown.length) {
+      setStatus(`В категории «${cat.label || key}» неизвестные игры: ${unknown.join(', ')}`, 'err');
+      return;
+    }
+  }
+
+  setStatus('Сохраняю...');
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/games', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(gamesState),
+    });
+    const data = await res.json();
+    if (data.ok) setStatus(data.message, 'ok');
+    else setStatus('Ошибка: ' + (data.error || 'неизвестно'), 'err');
+  } catch (err) {
+    setStatus('Ошибка сети: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Кнопки (все кнопки бота в одном месте)
 // ---------------------------------------------------------------------------
 async function loadButtons() {
@@ -1435,6 +1895,11 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     return;
   }
 
+  if (activeTab === 'games') {
+    await saveGames();
+    return;
+  }
+
   state.color = document.getElementById('color').value.trim() || '#262B64';
   state.bannerUrl = document.getElementById('bannerUrl').value.trim();
 
@@ -1482,6 +1947,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
 switchTab('nav');
 bindAdsFields();
+bindGamesFields();
 load().catch((err) => setStatus('Не загрузилось: ' + err.message, 'err'));
 </script>
 </body>
