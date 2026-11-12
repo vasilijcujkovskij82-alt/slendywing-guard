@@ -133,14 +133,14 @@ function categoryView(interaction, key) {
   const category = data.categories?.[key];
   if (!category) return mainView(interaction);
 
-  const description = [`# ${category.title || category.label || key}`, category.text || '']
-    .filter(Boolean)
-    .join('\n\n');
+  // Заголовок показываем только если он задан — ключ категории (zeoworks/fan) не подставляем
+  const description = [category.title || '', category.text || ''].filter(Boolean).join('\n\n');
 
   const embed = new EmbedBuilder()
     .setColor(parseColor(category.color || data.color))
-    .setAuthor(author(data, interaction))
-    .setDescription(emojis.resolve(description).slice(0, 4096));
+    .setAuthor(author(data, interaction));
+
+  if (description) embed.setDescription(emojis.resolve(description).slice(0, 4096));
 
   const gameKeys = (category.games || []).filter((gameKey) => {
     const game = data.games?.[gameKey];
