@@ -17,10 +17,10 @@
   },
   "categories": {
     "zeoworks": {
-      "label": "ZeoWorks",
+      "label": "",
       "title": "",
       "color": "#262B64",
-      "text": "## 𝄢 <:ZW:1570242177626280067>│ Официальные игры от ZeoWorks.",
+      "text": "## 𝄢 <:ZW:1570242177626280067>│ Официальные игры от ZeoWorks:",
       "games": [
         "v2",
         "st2",
@@ -28,10 +28,10 @@
       ]
     },
     "fan": {
-      "label": "Фанатские игры",
-      "title": "𝄢 🎨│ Фанатские игры",
+      "label": "",
+      "title": "",
       "color": "#262B64",
-      "text": "## 𝄢 🎮│ Игры, созданные фандомом Slendytubbies.",
+      "text": "## 𝄢 🎮│ Игры, созданные фандомом Slendytubbies:",
       "games": [
         "tdau",
         "zero",
