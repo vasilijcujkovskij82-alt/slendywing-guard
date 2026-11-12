@@ -34,9 +34,7 @@
       "games": [
         "tdau",
         "zero",
-        "zeroRecords",
-        "twoDr",
-        "forever"
+        "twoDr"
       ]
     }
   },
@@ -93,7 +91,8 @@
       "thumbnail": "",
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/zero-records-main.png",
       "text": "# SLENDYTUBBIES ∅ RECORDS\n# 𝄢 ❔│Что это за игра?\n## 𝄢 <:Zero:1497497509403033731> │ Продолжение оригинальной Slendytubbies ∅, игра представляет собою простой игрулькой для раскрытие сюжета основной игры.\n\n**𝄢 🎮 │ Вы являетесь сотрудником C.O.A.T, вам поручили составить отчет по делу объекта #12 (основной земли телепузиков) Вам нужно просмотреть все записи, для составление отчета. Отсматриваете записи, попутно выполняя мини-квесты.\n\n## 𝄢 <:calendar_1f4c5:1497436305188061336> │Выпущено: 05.04.26\n\n### - [𝄢 Ссылка на скачивание Slendytubbies Ø Records](<https://gamejolt.com/games/slendytubbies_zero_records/1061213>)\n<:Poloca:1497471197112434798><:Poloca:1497471197112434798><:Poloca:1497471197112434798><:Poloca:1497471197112434798>\n### -  [𝄢 Трейлер Slendytubbies ∅ Records](<https://www.youtube.com/watch?v=BVCu9A5Gmmo>)",
-      "achievements": "yes"
+      "achievements": "yes",
+      "parent": "zero"
     },
     "twoDr": {
       "category": "fan",
@@ -111,7 +110,8 @@
       "thumbnail": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/2dr-forever-icon.jpg",
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/2dr-forever-main.webp",
       "text": "# ST2DR FOREVER\n# 𝄢 ❔│Что это за игра?\n## 𝄢 👾 │ Игра, является переосмыслением ST2DR, сделаной полностью на Unity.\n**𝄢 🎮 │ Геймплей пока-что представляет собой собиралку кустардов, в будущем будет добавлено больше режимов.**\n\n## 𝄢 <:calendar_1f4c5:1497436305188061336> │Выпущено: 01.04.26\n\n### - [𝄢 Ссылка на скачивание Slendytubbies 2D Revolution FOREVER](<https://gamejolt.com/games/s2drgallyscollection/924207>)\n<:Poloca:1497471197112434798><:Poloca:1497471197112434798><:Poloca:1497471197112434798><:Poloca:1497471197112434798>\n### -  [𝄢 Трейлер Slendytubbies 2D Revolution FOREVER](<https://www.youtube.com/watch?v=yxLk-dg38P8>)\n<:Poloca:1497471197112434798><:Poloca:1497471197112434798><:Poloca:1497471197112434798><:Poloca:1497471197112434798>\n## ФАН-ИГРА В РАЗРАБОТКЕ!",
-      "achievements": "no"
+      "achievements": "no",
+      "parent": "twoDr"
     }
   },
   "achievements": {
