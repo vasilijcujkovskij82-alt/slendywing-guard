@@ -42,7 +42,7 @@
   "games": {
     "v2": {
       "category": "zeoworks",
-      "label": "𝄢 :Tinky: │ SLENDYTUBBIES V2",
+      "label": "𝄢 │ SLENDYTUBBIES V2",
       "color": "152 115 255",
       "thumbnail": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/screamer1.webp",
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/v2-main.jpg",
@@ -51,7 +51,7 @@
     },
     "st2": {
       "category": "zeoworks",
-      "label": "𝄢 <:256x256:1497448271440777256> │ SLENDYTUBBIES II",
+      "label": "𝄢 │ SLENDYTUBBIES II",
       "color": "114 24 24",
       "thumbnail": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/st2-icon.jpg",
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/st2-main.png",
@@ -60,7 +60,7 @@
     },
     "st3": {
       "category": "zeoworks",
-      "label": "𝄢 <:ST3ICON:1557708549419958375> │ SLENDYTUBBIES III",
+      "label": "𝄢 │ SLENDYTUBBIES III",
       "color": "38 43 100",
       "thumbnail": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/st3-icon.png",
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/st3-main.jpg",
@@ -69,7 +69,7 @@
     },
     "tdau": {
       "category": "fan",
-      "label": "𝄢 <:3_1:1497881997828165783> │ SLENDYTUBBIES: TDAU",
+      "label": "𝄢 │ SLENDYTUBBIES: TDAU",
       "color": "65 38 100",
       "thumbnail": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/tdau-icon.png",
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/tdau-main.png",
@@ -78,7 +78,7 @@
     },
     "zero": {
       "category": "fan",
-      "label": "𝄢 <:Zero:1497497509403033731> │ SLENDYTUBBIES Ø",
+      "label": "𝄢 │ SLENDYTUBBIES Ø",
       "color": "255 223 223",
       "thumbnail": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/zero-icon.png",
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/zero-main.jpg",
@@ -87,7 +87,7 @@
     },
     "zeroRecords": {
       "category": "fan",
-      "label": "𝄢 <:Zero:1497497509403033731> │ SLENDYTUBBIES Ø Records",
+      "label": "𝄢 │ SLENDYTUBBIES Ø Records",
       "color": "38 43 100",
       "thumbnail": "",
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/games/zero-records-main.png",
