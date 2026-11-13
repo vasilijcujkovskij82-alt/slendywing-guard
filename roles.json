@@ -35,8 +35,15 @@
     },
     "tags": {
       "label": "༻🛑│ТЕГИ",
-      "text": "# ༻ВЫБОР ТЕГОВ УЧАСТНИКА༺\n\n** 𝄢❔│ Здесь вы можете забрать бесплатные теги!**\n\n# ༻ДОСТУПНЫЕ ТЕГИ༺\n\n- Пока доступных тегов нету.\n\n# ──༺༻──",
-      "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/roles-cat-tags.jpg"
+      "text": "# ༻ВЫБОР ТЕГОВ УЧАСТНИКА༺\n\n** 𝄢❔│ Здесь вы можете забрать бесплатные теги!**\n\n# ༻ДОСТУПНЫЕ ТЕГИ༺\n\n- <@1471763674959052902> - Пропадет 14 ноября.\n\n# ──༺༻──",
+      "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/roles-cat-tags.jpg",
+      "buttons": [
+        {
+          "label": "༻🛑│ЗАБРАТЬ ТЕГ",
+          "roleId": "1471763674959052902"
+        }
+      ],
+      "categoryRole": ""
     },
     "colors": {
       "label": "༻🎨│ЦВЕТА",
