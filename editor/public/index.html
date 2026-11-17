@@ -65,6 +65,7 @@
     <button class="tab" data-tab="buttons" type="button">Кнопки</button>
     <button class="tab" data-tab="ads" type="button">Реклама</button>
     <button class="tab" data-tab="games" type="button">Игры</button>
+    <button class="tab" data-tab="ach" type="button">Достижения</button>
   </div>
   <span id="status" class="status"></span>
   <button class="btn" id="addBtn" type="button">+ Раздел</button>
@@ -352,6 +353,66 @@
       <div class="row"><label>Основная картинка (ссылка)</label><input type="text" id="achNoImage" placeholder="https://..."></div>
     </div>
   </div>
+
+  <div id="achPanel" hidden>
+    <div class="card">
+      <h2>Достижения · главная карточка</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Автор карточки</label>
+          <input type="text" id="achAuthor" placeholder="༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺">
+        </div>
+        <div class="row">
+          <label>Цвет рамки (hex или RGB)</label>
+          <input type="text" id="achColor" placeholder="#262B64 или 38 43 100">
+        </div>
+      </div>
+      <div class="grid">
+        <div class="row">
+          <label>Миниатюра (ссылка, пусто = аватарка сервера)</label>
+          <input type="text" id="achThumbnail" placeholder="https://...">
+        </div>
+        <div class="row">
+          <label>Основная картинка (ссылка)</label>
+          <input type="text" id="achImage" placeholder="https://...">
+        </div>
+      </div>
+      <div class="row">
+        <label>Текст главной карточки (markdown Discord)</label>
+        <textarea id="achMainText" data-field="ach-main-text" style="min-height:220px"></textarea>
+        <div class="counter" id="achMainCounter">0 / 4096</div>
+      </div>
+      <div class="hint">Если миниатюра пустая, бот поставит аватарку сервера — как на главной карточке достижений.</div>
+    </div>
+
+    <div class="card">
+      <h2>Меню выбора игры</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Подсказка в меню</label>
+          <input type="text" id="achMenuPlaceholder" placeholder="𝄢 │ Выбери игру">
+        </div>
+        <div class="row">
+          <label>Кнопка проверки · подпись</label>
+          <input type="text" id="achMenuButtonLabel" placeholder="𝄢🔎│ПРОВЕРКА ДОСТИЖЕНИЙ">
+        </div>
+      </div>
+      <div class="row">
+        <label>Кнопка проверки · ссылка</label>
+        <input type="text" id="achMenuButtonUrl" placeholder="https://discord.com/channels/...">
+      </div>
+      <div class="hint">Кнопка проверки показывается на главной карточке и на каждой странице игры.</div>
+    </div>
+
+    <div class="card">
+      <h2>Страницы игр</h2>
+      <div id="achPages"></div>
+      <div class="hint">
+        Каждая страница открывается из меню выбора. Внутри страницы может быть несколько рамок —
+        у каждой свой цвет, миниатюра и текст.
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -359,6 +420,7 @@ let state = null;
 let rolesState = null;
 let adsState = null;
 let gamesState = null;
+let achievementsState = null;
 let activeTab = 'nav';
 let allEmojis = [];
 let lastField = null;
@@ -383,6 +445,7 @@ function switchTab(tab) {
   document.getElementById('buttonsPanel').hidden = tab !== 'buttons';
   document.getElementById('adsPanel').hidden = tab !== 'ads';
   document.getElementById('gamesPanel').hidden = tab !== 'games';
+  document.getElementById('achPanel').hidden = tab !== 'ach';
   document.getElementById('addBtn').hidden = tab !== 'nav';
   document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
 
@@ -407,6 +470,13 @@ function switchTab(tab) {
     else if (changed) {
       fillGamesDom();
       setStatus('Игры загружены', 'ok');
+    }
+  }
+  if (tab === 'ach') {
+    if (!achievementsState) loadAchievements();
+    else if (changed) {
+      fillAchievementsDom();
+      setStatus('Достижения загружены', 'ok');
     }
   }
 }
@@ -1425,6 +1495,269 @@ async function saveGames() {
 }
 
 // ---------------------------------------------------------------------------
+// Достижения (/достижение)
+// ---------------------------------------------------------------------------
+let achBindingsReady = false;
+
+function updateAchMainCounter() {
+  const el = document.getElementById('achMainText');
+  const counter = document.getElementById('achMainCounter');
+  if (!el || !counter) return;
+  counter.textContent = `${el.value.length} / 4096`;
+  counter.style.color = el.value.length > 4096 ? '#f08a8a' : '';
+}
+
+// Страница может состоять из нескольких рамок (embeds) либо быть одной рамкой.
+function achSections(page) {
+  return Array.isArray(page.embeds) && page.embeds.length ? page.embeds : [page];
+}
+
+function achSummaryText(page, key) {
+  const count = achSections(page).length;
+  return `${page.option || key} · рамок: ${count}`;
+}
+
+function fillAchievementsDom() {
+  if (!achievementsState) return;
+
+  const values = {
+    achAuthor: achievementsState.author || '',
+    achColor: achievementsState.color || '#262B64',
+    achThumbnail: achievementsState.main?.thumbnail || '',
+    achImage: achievementsState.main?.image || '',
+    achMainText: achievementsState.main?.text || '',
+    achMenuPlaceholder: achievementsState.menu?.placeholder || '',
+    achMenuButtonLabel: achievementsState.menu?.button?.label || '',
+    achMenuButtonUrl: achievementsState.menu?.button?.url || '',
+  };
+
+  for (const [id, value] of Object.entries(values)) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  }
+
+  updateAchMainCounter();
+  renderAchPages();
+}
+
+async function loadAchievements() {
+  setStatus('Загружаю достижения...');
+  try {
+    const res = await fetch('/api/achievements');
+    const data = await res.json();
+    if (data && data.ok === false) {
+      setStatus('Достижения: ' + (data.error || 'ошибка'), 'err');
+      return;
+    }
+    achievementsState = data;
+  } catch (err) {
+    setStatus('Достижения не загрузились: ' + err.message, 'err');
+    return;
+  }
+
+  achievementsState.main = achievementsState.main || {};
+  achievementsState.menu = achievementsState.menu || {};
+  achievementsState.menu.button = achievementsState.menu.button || {};
+  achievementsState.pages = achievementsState.pages || {};
+
+  fillAchievementsDom();
+  setStatus('Достижения загружены', 'ok');
+}
+
+function bindAchFields() {
+  if (achBindingsReady) return;
+  achBindingsReady = true;
+
+  const fields = {
+    achAuthor: (value) => { achievementsState.author = value; },
+    achColor: (value) => { achievementsState.color = value.trim() || '#262B64'; },
+    achThumbnail: (value) => {
+      achievementsState.main = achievementsState.main || {};
+      achievementsState.main.thumbnail = value.trim();
+    },
+    achImage: (value) => {
+      achievementsState.main = achievementsState.main || {};
+      achievementsState.main.image = value.trim();
+    },
+    achMainText: (value) => {
+      achievementsState.main = achievementsState.main || {};
+      achievementsState.main.text = value;
+    },
+    achMenuPlaceholder: (value) => {
+      achievementsState.menu = achievementsState.menu || {};
+      achievementsState.menu.placeholder = value;
+    },
+    achMenuButtonLabel: (value) => {
+      achievementsState.menu = achievementsState.menu || {};
+      achievementsState.menu.button = achievementsState.menu.button || {};
+      achievementsState.menu.button.label = value;
+    },
+    achMenuButtonUrl: (value) => {
+      achievementsState.menu = achievementsState.menu || {};
+      achievementsState.menu.button = achievementsState.menu.button || {};
+      achievementsState.menu.button.url = value.trim();
+    },
+  };
+
+  for (const [id, apply] of Object.entries(fields)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.addEventListener('input', () => {
+      if (!achievementsState) return;
+      apply(el.value);
+      if (id === 'achMainText') updateAchMainCounter();
+    });
+  }
+}
+
+function renderAchPages() {
+  const host = document.getElementById('achPages');
+  host.innerHTML = '';
+  if (!achievementsState) return;
+
+  const pages = achievementsState.pages || {};
+  const keys = Object.keys(pages);
+  if (!keys.length) return addEmptyHint(host, 'Страниц пока нет.');
+
+  keys.forEach((key, index) => {
+    const page = pages[key];
+    const sections = achSections(page);
+    const box = document.createElement('details');
+    box.className = 'mini';
+    if (index === 0) box.open = true;
+
+    const summary = document.createElement('summary');
+    summary.style.cursor = 'pointer';
+    summary.style.marginBottom = '8px';
+    summary.textContent = achSummaryText(page, key);
+    box.appendChild(summary);
+
+    const body = document.createElement('div');
+    body.innerHTML = `
+      <div class="grid">
+        <div class="row"><label>Подпись в меню выбора</label><input type="text" data-ach-page="option" value="${escapeAttr(page.option || '')}"></div>
+        <div class="row"><label>Ключ страницы (менять не нужно)</label><input type="text" value="${escapeAttr(key)}" disabled></div>
+      </div>
+    `;
+
+    body.querySelector('[data-ach-page]').addEventListener('input', (event) => {
+      page.option = event.target.value;
+      summary.textContent = achSummaryText(page, key);
+    });
+
+    sections.forEach((section, sectionIndex) => {
+      const mini = document.createElement('div');
+      mini.className = 'mini';
+      mini.style.background = '#26282c';
+      const fieldId = `ach-${key}-${sectionIndex}`;
+
+      mini.innerHTML = `
+        <div class="section-head">
+          <h3 style="margin:0">Рамка ${sectionIndex + 1}</h3>
+          <div class="spacer"></div>
+          <span class="key">цвет: ${escapeHtml(section.color || '—')}</span>
+        </div>
+        <div class="grid">
+          <div class="row"><label>Цвет рамки</label><input type="text" data-ach-color value="${escapeAttr(section.color || '')}" placeholder="151 32 32"></div>
+          <div class="row"><label>Миниатюра (ссылка, можно пустой)</label><input type="text" data-ach-thumb value="${escapeAttr(section.thumbnail || '')}"></div>
+        </div>
+        <div class="row">
+          <label>Текст рамки (markdown Discord)</label>
+          <textarea data-ach-text data-field="${escapeAttr(fieldId)}" style="min-height:200px">${escapeHtml(section.text || '')}</textarea>
+          <div class="counter" data-ach-counter>${(section.text || '').length} / 4096</div>
+        </div>
+      `;
+
+      const colorEl = mini.querySelector('[data-ach-color]');
+      const colorKey = mini.querySelector('.key');
+      const thumbEl = mini.querySelector('[data-ach-thumb]');
+      const textEl = mini.querySelector('[data-ach-text]');
+      const counterEl = mini.querySelector('[data-ach-counter]');
+
+      colorEl.addEventListener('input', () => {
+        section.color = colorEl.value.trim();
+        colorKey.textContent = `цвет: ${section.color || '—'}`;
+      });
+
+      thumbEl.addEventListener('input', () => {
+        const value = thumbEl.value.trim();
+        if (value) section.thumbnail = value;
+        else delete section.thumbnail;
+      });
+
+      textEl.addEventListener('input', () => {
+        section.text = textEl.value;
+        counterEl.textContent = `${textEl.value.length} / 4096`;
+        counterEl.style.color = textEl.value.length > 4096 ? '#f08a8a' : '';
+      });
+
+      body.appendChild(mini);
+    });
+
+    box.appendChild(body);
+    host.appendChild(box);
+  });
+}
+
+async function saveAchievements() {
+  if (!achievementsState) return;
+
+  achievementsState.author = document.getElementById('achAuthor').value.trim();
+  achievementsState.color = document.getElementById('achColor').value.trim() || '#262B64';
+  achievementsState.main = achievementsState.main || {};
+  achievementsState.main.thumbnail = document.getElementById('achThumbnail').value.trim();
+  achievementsState.main.image = document.getElementById('achImage').value.trim();
+  achievementsState.main.text = document.getElementById('achMainText').value;
+  achievementsState.menu = achievementsState.menu || {};
+  achievementsState.menu.placeholder = document.getElementById('achMenuPlaceholder').value.trim();
+  achievementsState.menu.button = achievementsState.menu.button || {};
+  achievementsState.menu.button.label = document.getElementById('achMenuButtonLabel').value;
+  achievementsState.menu.button.url = document.getElementById('achMenuButtonUrl').value.trim();
+
+  if ((achievementsState.main.text || '').length > 4096) {
+    setStatus('Текст главной карточки достижений больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+
+  for (const [key, page] of Object.entries(achievementsState.pages || {})) {
+    let total = 0;
+
+    for (const section of achSections(page)) {
+      const length = (section.text || '').length;
+      if (length > 4096) {
+        setStatus(`Текст рамки на странице «${page.option || key}» больше 4096 символов — Discord не примет.`, 'err');
+        return;
+      }
+      total += length;
+    }
+
+    if (total > 6000) {
+      setStatus(`Страница «${page.option || key}»: суммарно больше 6000 символов — Discord не примет.`, 'err');
+      return;
+    }
+  }
+
+  setStatus('Сохраняю...');
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/achievements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(achievementsState),
+    });
+    const data = await res.json();
+    if (data.ok) setStatus(data.message, 'ok');
+    else setStatus('Ошибка: ' + (data.error || 'неизвестно'), 'err');
+  } catch (err) {
+    setStatus('Ошибка сети: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Кнопки (все кнопки бота в одном месте)
 // ---------------------------------------------------------------------------
 async function loadButtons() {
@@ -1961,6 +2294,11 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     return;
   }
 
+  if (activeTab === 'ach') {
+    await saveAchievements();
+    return;
+  }
+
   state.color = document.getElementById('color').value.trim() || '#262B64';
   state.bannerUrl = document.getElementById('bannerUrl').value.trim();
 
@@ -2009,6 +2347,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 switchTab('nav');
 bindAdsFields();
 bindGamesFields();
+bindAchFields();
 load().catch((err) => setStatus('Не загрузилось: ' + err.message, 'err'));
 </script>
 </body>

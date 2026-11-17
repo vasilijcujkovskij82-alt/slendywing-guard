@@ -13,6 +13,7 @@ const CONTENT_PATH = path.join(ROOT, 'content.json');
 const ROLES_PATH = path.join(ROOT, 'roles.json');
 const ADS_PATH = path.join(ROOT, 'ads.json');
 const GAMES_PATH = path.join(ROOT, 'games.json');
+const ACHIEVEMENTS_PATH = path.join(ROOT, 'achievements.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = 3060;
 
@@ -383,6 +384,95 @@ const server = http.createServer((req, res) => {
       }
 
       const result = commitAndPush(['games.json'], 'Update games catalog via editor');
+      return send(res, result.ok ? 200 : 500, JSON.stringify(result));
+    });
+
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/achievements') {
+    try {
+      return send(res, 200, fs.readFileSync(ACHIEVEMENTS_PATH, 'utf8'));
+    } catch (err) {
+      return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/achievements') {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 4_000_000) req.destroy();
+    });
+
+    req.on('end', () => {
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Некорректный JSON' }));
+      }
+
+      if (!data || typeof data !== 'object' || !data.main || typeof data.main !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля main' }));
+      }
+
+      if (!data.pages || typeof data.pages !== 'object' || Array.isArray(data.pages)) {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля pages' }));
+      }
+
+      if ((data.main.text || '').length > 4096) {
+        return send(
+          res,
+          400,
+          JSON.stringify({ ok: false, error: 'Текст главной карточки больше 4096 символов — Discord не примет.' })
+        );
+      }
+
+      for (const [key, page] of Object.entries(data.pages)) {
+        if (!page || typeof page !== 'object') {
+          return send(res, 400, JSON.stringify({ ok: false, error: `Страница ${key} должна быть объектом` }));
+        }
+
+        // Страница может состоять из нескольких рамок (embeds), иначе — одна рамка.
+        const sections = Array.isArray(page.embeds) && page.embeds.length ? page.embeds : [page];
+        let total = 0;
+
+        for (const section of sections) {
+          if (!section || typeof section !== 'object') {
+            return send(
+              res,
+              400,
+              JSON.stringify({ ok: false, error: `На странице ${key} рамка должна быть объектом` })
+            );
+          }
+          const text = typeof section.text === 'string' ? section.text : '';
+          if (text.length > 4096) {
+            return send(
+              res,
+              400,
+              JSON.stringify({ ok: false, error: `Текст рамки на странице ${key} больше 4096 символов.` })
+            );
+          }
+          total += text.length;
+        }
+
+        if (total > 6000) {
+          return send(
+            res,
+            400,
+            JSON.stringify({ ok: false, error: `Страница ${key}: суммарно больше 6000 символов — Discord не примет.` })
+          );
+        }
+      }
+
+      try {
+        fs.writeFileSync(ACHIEVEMENTS_PATH, JSON.stringify(data, null, 2) + '\n', 'utf8');
+      } catch (err) {
+        return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+      }
+
+      const result = commitAndPush(['achievements.json'], 'Update achievements via editor');
       return send(res, result.ok ? 200 : 500, JSON.stringify(result));
     });
 
