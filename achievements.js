@@ -146,15 +146,23 @@ function pageView(interaction, key) {
   const page = data.pages?.[key];
   if (!page) return mainView(interaction);
 
-  const embed = new EmbedBuilder()
-    .setColor(parseColor(page.color || data.color))
-    .setDescription(emojis.resolve(page.text || '').slice(0, 4096));
+  // Страница может состоять из нескольких рамок (embeds), каждая со своим цветом:
+  //   "embeds": [ { color, text, thumbnail }, ... ]
+  // Если рамок нет — одна общая рамка страницы.
+  const sections = Array.isArray(page.embeds) && page.embeds.length ? page.embeds : [page];
 
-  if (page.thumbnail) embed.setThumbnail(page.thumbnail);
+  const embeds = sections.slice(0, 10).map((section) => {
+    const embed = new EmbedBuilder()
+      .setColor(parseColor(section.color || page.color || data.color))
+      .setDescription(emojis.resolve(section.text || '').slice(0, 4096));
+
+    if (section.thumbnail) embed.setThumbnail(section.thumbnail);
+    return embed;
+  });
 
   const row = linkRow(data);
   return {
-    embeds: [embed],
+    embeds,
     components: row ? [row] : [],
     allowedMentions: { parse: [] },
   };
