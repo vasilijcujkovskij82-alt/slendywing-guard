@@ -109,7 +109,10 @@ function mainView(interaction) {
     .setAuthor(author(data, interaction));
 
   if (main.text) embed.setDescription(emojis.resolve(main.text).slice(0, 4096));
-  if (main.thumbnail) embed.setThumbnail(main.thumbnail);
+
+  // Миниатюра — аватарка сервера SlendyWing (guild.iconUrl), как в макете.
+  const thumbnail = interaction.guild?.iconURL({ size: 256 }) || main.thumbnail;
+  if (thumbnail) embed.setThumbnail(thumbnail);
   if (main.image) embed.setImage(main.image);
 
   const pages = Object.entries(data.pages || {}).filter(([, page]) => page && page.option);
