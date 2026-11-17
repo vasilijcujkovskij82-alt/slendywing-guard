@@ -8,6 +8,7 @@ const buttons = require('./buttons'); // кнопки главной карто�
 const roles = require('./roles');     // меню ролей (/роли)
 const ads = require('./ads');         // реклама (/пиар)
 const games = require('./games');     // каталог игр (/игры)
+const achievements = require('./achievements'); // меню достижений (/достижение)
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -166,6 +167,11 @@ const COMMANDS = [
   {
     name: 'игры',
     description: 'Отправить меню игр в этот канал',
+    defaultMemberPermissions: '0',
+  },
+  {
+    name: 'достижение',
+    description: 'Отправить меню достижений в этот канал',
     defaultMemberPermissions: '0',
   },
   { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
@@ -543,6 +549,15 @@ client.on('interactionCreate', async (interaction) => {
       }
       return;
     }
+
+    if (interaction.customId.startsWith('ach:')) {
+      try {
+        await achievements.handleComponent(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка выбора достижения: ${err.message}`);
+      }
+      return;
+    }
   }
 
   // Окно создания рекламы
@@ -599,6 +614,13 @@ client.on('interactionCreate', async (interaction) => {
       // Карточка игр — обычным сообщением, чтобы кнопками могли пользоваться все
       await interaction.reply({ content: 'Меню игр отправлено 👇', flags: MessageFlags.Ephemeral });
       await interaction.channel.send(games.mainView(interaction));
+      return;
+    }
+
+    if (interaction.commandName === 'достижение') {
+      // Карточка достижений — обычным сообщением, чтобы меню могли пользоваться все
+      await interaction.reply({ content: 'Меню достижений отправлено 👇', flags: MessageFlags.Ephemeral });
+      await interaction.channel.send(achievements.mainView(interaction));
       return;
     }
 
