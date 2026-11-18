@@ -9,6 +9,7 @@ const roles = require('./roles');     // меню ролей (/роли)
 const ads = require('./ads');         // реклама (/пиар)
 const games = require('./games');     // каталог игр (/игры)
 const achievements = require('./achievements'); // меню достижений (/достижение)
+const review = require('./review');   // проверка достижений (/првдостижений)
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -172,6 +173,11 @@ const COMMANDS = [
   {
     name: 'достижение',
     description: 'Отправить меню достижений в этот канал',
+    defaultMemberPermissions: '0',
+  },
+  {
+    name: 'првдостижений',
+    description: 'Отправить меню проверки достижений в этот канал',
     defaultMemberPermissions: '0',
   },
   { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
@@ -517,6 +523,26 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // rwcreate — открыть окно создания поста на проверку достижений
+    if (id === 'rwcreate') {
+      try {
+        await review.openModal(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка окна проверки достижений: ${err.message}`);
+      }
+      return;
+    }
+
+    // rwdelete:<id автора> — удалить публикацию (автор или модератор)
+    if (id.startsWith('rwdelete:')) {
+      try {
+        await review.deletePost(interaction, id.slice(9));
+      } catch (err) {
+        console.log(`  [!] Ошибка удаления публикации достижения: ${err.message}`);
+      }
+      return;
+    }
+
     // games:* — каталог игр
     if (id.startsWith('games:')) {
       try {
@@ -568,6 +594,16 @@ client.on('interactionCreate', async (interaction) => {
       } catch (err) {
         console.log(`  [!] Ошибка публикации рекламы: ${err.message}`);
       }
+      return;
+    }
+
+    if (interaction.customId === 'rwmodal') {
+      try {
+        await review.submitPost(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка публикации проверки достижений: ${err.message}`);
+      }
+      return;
     }
     return;
   }
@@ -621,6 +657,13 @@ client.on('interactionCreate', async (interaction) => {
       // Карточка достижений — обычным сообщением, чтобы меню могли пользоваться все
       await interaction.reply({ content: 'Меню достижений отправлено 👇', flags: MessageFlags.Ephemeral });
       await interaction.channel.send(achievements.mainView(interaction));
+      return;
+    }
+
+    if (interaction.commandName === 'првдостижений') {
+      // Карточка проверки достижений — обычным сообщением, чтобы кнопкой могли пользоваться все
+      await interaction.reply({ content: 'Меню проверки достижений отправлено 👇', flags: MessageFlags.Ephemeral });
+      await interaction.channel.send(review.mainView(interaction));
       return;
     }
 
