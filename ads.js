@@ -25,6 +25,7 @@ const {
   TextDisplayBuilder,
   AttachmentBuilder,
   MessageFlags,
+  PermissionFlagsBits,
 } = require('discord.js');
 
 const emojis = require('./emojis');
@@ -460,16 +461,26 @@ function deniedView(data) {
   };
 }
 
-async function deleteAd(interaction, authorId) {
-  const data = read();
+// Удалять может автор, администратор по правам и модераторы из ads.json
+function canModerate(interaction, data) {
   const member = interaction.member;
 
-  const isAuthor = interaction.user?.id === authorId;
-  const isModerator =
-    Array.isArray(data.moderatorRoles) &&
-    data.moderatorRoles.some((id) => member?.roles?.cache?.has(id));
+  if (member?.permissions?.has?.(PermissionFlagsBits.Administrator)) return true;
+  if (interaction.memberPermissions?.has?.(PermissionFlagsBits.Administrator)) return true;
+  if (interaction.guild && interaction.guild.ownerId === interaction.user?.id) return true;
 
-  if (!isAuthor && !isModerator) {
+  return (
+    Array.isArray(data.moderatorRoles) &&
+    data.moderatorRoles.some((id) => member?.roles?.cache?.has(id))
+  );
+}
+
+async function deleteAd(interaction, authorId) {
+  const data = read();
+
+  const isAuthor = interaction.user?.id === authorId;
+
+  if (!isAuthor && !canModerate(interaction, data)) {
     await interaction.reply(deniedView(data));
     return;
   }

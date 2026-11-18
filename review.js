@@ -739,14 +739,10 @@ function deniedView(data) {
 
 async function deletePost(interaction, authorId) {
   const data = read();
-  const member = interaction.member;
 
   const isAuthor = interaction.user?.id === authorId;
-  const isModerator =
-    Array.isArray(data.moderatorRoles) &&
-    data.moderatorRoles.some((id) => member?.roles?.cache?.has(id));
 
-  if (!isAuthor && !isModerator) {
+  if (!isAuthor && !canModerate(interaction, data)) {
     await interaction.reply(deniedView(data));
     return;
   }
@@ -762,7 +758,10 @@ async function deletePost(interaction, authorId) {
 function canModerate(interaction, data) {
   const member = interaction.member;
 
+  // Администратор по правам, владелец сервера — тоже
   if (member?.permissions?.has?.(PermissionFlagsBits.Administrator)) return true;
+  if (interaction.memberPermissions?.has?.(PermissionFlagsBits.Administrator)) return true;
+  if (interaction.guild && interaction.guild.ownerId === interaction.user?.id) return true;
 
   return (
     Array.isArray(data.moderatorRoles) &&
