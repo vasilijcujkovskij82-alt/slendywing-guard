@@ -325,11 +325,15 @@
       <h2>Окно проверки</h2>
       <div class="grid">
         <div class="row"><label>Заголовок окна</label><input type="text" id="reviewModalTitle" placeholder="Выставите достижение на проверку"></div>
-        <div class="row"><label>Поле «Название достижение»</label><input type="text" id="reviewLinkLabel" placeholder="Название достижение"></div>
+        <div class="row"><label>Подпись списка «Достижение»</label><input type="text" id="reviewLinkLabel" placeholder="Достижение"></div>
         <div class="row"><label>Поле «Ссылка на видео»</label><input type="text" id="reviewDescLabel" placeholder="Ссылка на видео (если файл больше 50 МБ)"></div>
         <div class="row"><label>Поле «Фото или видео»</label><input type="text" id="reviewFileLabel" placeholder="Фото или видео"></div>
       </div>
-      <div class="hint">Подпись поля в окне Discord — не больше 45 символов. Фото/видео обязательное (можно до 4 файлов), ссылка на видео — нет.</div>
+      <div class="hint">
+        Вместо ввода названия — список достижений. Он собирается из вкладки «Достижения»,
+        а подписи пунктов — роли достижений с сервера. Подпись в окне Discord — не больше 45 символов.
+        Фото/видео обязательное (можно до 4 файлов), ссылка на видео — нет.
+      </div>
     </div>
 
     <div class="card">
@@ -2019,7 +2023,7 @@ async function saveReview() {
   }
 
   for (const [id, label] of [
-    ['linkLabel', 'Название достижение'],
+    ['linkLabel', 'Достижение'],
     ['descriptionLabel', 'Ссылка на видео'],
     ['fileLabel', 'Фото или видео'],
   ]) {

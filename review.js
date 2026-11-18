@@ -20,6 +20,8 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
   LabelBuilder,
   FileUploadBuilder,
   TextDisplayBuilder,
@@ -38,6 +40,14 @@ const DEFAULT_COLOR = 0x262b64;
 // id строки статуса: по нему «✅» и «❌» находят, что заменить
 const STATUS_ID = 777;
 
+// Достижения для списка выбора берём из того же файла, что и /достижение
+const ACHIEVEMENTS_PATH = path.join(__dirname, 'achievements.json');
+const ACHIEVEMENT_LINE = /^> ## - (.+?) │ \*\*\*(.+?)\*\*\* - (.+)$/;
+// В одном списке Discord разрешает не больше 25 пунктов
+const OPTIONS_PER_SELECT = 25;
+// Больше трёх списков в окно не влезет: ещё нужны ссылка и файлы
+const MAX_SELECTS = 3;
+
 const FALLBACK = {
   color: '#262B64',
   author: '༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺',
@@ -46,7 +56,7 @@ const FALLBACK = {
   deleteButton: { emoji: '🗑️' },
   modal: {
     title: 'Выставите достижение на проверку',
-    linkLabel: 'название достижение',
+    linkLabel: 'Достижение',
     descriptionLabel: 'Ссылка на видео (если файл весит больше 50 МБ)',
     fileLabel: 'Фото или видео',
   },
@@ -249,6 +259,149 @@ function mainView(interaction) {
 }
 
 // ---------------------------------------------------------------------------
+// Список достижений и ролей для окна проверки
+// ---------------------------------------------------------------------------
+// Достижения читаются из achievements.json (страницы /достижение), а роль для
+// каждого ищется на сервере по названию: «༄ 🥇│<название> [игра]».
+let achievementsCached = null;
+let achievementsMtimeMs = -1;
+
+function parseAchievements(data) {
+  const list = [];
+
+  for (const [key, page] of Object.entries(data?.pages || {})) {
+    const game = String(page?.option || key).trim();
+    let index = 0;
+
+    for (const embed of page?.embeds || []) {
+      for (const line of String(embed?.text || '').split(/\r?\n/)) {
+        const match = line.match(ACHIEVEMENT_LINE);
+        if (!match) continue;
+
+        const emoji = String(match[1]).match(/<(a?):([^:>]+):(\d+)>/);
+        list.push({
+          key,
+          game,
+          name: match[2].trim(),
+          description: match[3].trim(),
+          emoji: emoji ? { name: emoji[2], id: emoji[3] } : null,
+          value: `${key}:${index}`,
+        });
+        index += 1;
+      }
+    }
+  }
+
+  return list;
+}
+
+function readAchievements() {
+  let mtimeMs = -1;
+  try {
+    mtimeMs = fs.statSync(ACHIEVEMENTS_PATH).mtimeMs;
+  } catch {
+    return achievementsCached || [];
+  }
+
+  if (achievementsCached && mtimeMs === achievementsMtimeMs) return achievementsCached;
+
+  try {
+    achievementsCached = parseAchievements(JSON.parse(fs.readFileSync(ACHIEVEMENTS_PATH, 'utf8')));
+    achievementsMtimeMs = mtimeMs;
+  } catch (err) {
+    console.log(`  [!] achievements.json не прочитан (${err.message}), список достижений пуст.`);
+  }
+
+  return achievementsCached || [];
+}
+
+// «𝄢 │ SLENDYTUBBIES V2» -> «V2»
+function shortGameName(game) {
+  return String(game || '')
+    .split('│')
+    .pop()
+    .trim()
+    .replace(/^SLENDYTUBBIES\s*:?\s*/i, '');
+}
+
+function normalizeName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+function findAchievementRole(guild, name) {
+  const target = normalizeName(name);
+  if (!target) return null;
+
+  let contains = null;
+  for (const role of guild?.roles?.cache?.values?.() || []) {
+    const normalized = normalizeName(role.name);
+    if (!normalized || normalized === 'everyone') continue;
+    if (normalized === target) return role;
+    if (!contains && normalized.includes(target)) contains = role;
+  }
+
+  return contains;
+}
+
+function achievementChunks() {
+  const list = readAchievements();
+  if (!list.length) return [];
+
+  const needed = Math.ceil(list.length / OPTIONS_PER_SELECT);
+  const size =
+    needed <= MAX_SELECTS
+      ? OPTIONS_PER_SELECT
+      : Math.max(1, Math.min(OPTIONS_PER_SELECT, Math.ceil(list.length / MAX_SELECTS)));
+
+  const chunks = [];
+  for (let index = 0; index < list.length && chunks.length < MAX_SELECTS; index += size) {
+    chunks.push(list.slice(index, index + size));
+  }
+
+  const included = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  if (included < list.length) {
+    console.log(
+      `  [!] Достижений ${list.length}, в окно помещается ${included} — остальные в список не попали.`
+    );
+  }
+
+  return chunks;
+}
+
+// Пункты списков: значение — id роли достижения (если роль нашлась).
+// Строится одинаково при открытии окна и при отправке, чтобы найти выбранное.
+function achievementSelectData(chunks, guild) {
+  const used = new Set();
+
+  return chunks.map((chunk) => ({
+    chunk,
+    options: chunk.map((achievement) => {
+      const role = findAchievementRole(guild, achievement.name);
+      let value = role ? String(role.id) : achievement.value;
+      if (used.has(value)) value = achievement.value;
+      if (used.has(value)) value = `${value}:${used.size}`;
+      used.add(value);
+      return { achievement, role, value };
+    }),
+  }));
+}
+
+function achievementOption({ achievement, role, value }) {
+  const option = new StringSelectMenuOptionBuilder()
+    .setLabel(achievement.name.slice(0, 100))
+    .setValue(value);
+
+  // Подпись пункта — роль, которую выдают за достижение
+  const description = role ? role.name : achievement.description;
+  if (description) option.setDescription(String(description).slice(0, 100));
+  if (achievement.emoji) option.setEmoji(achievement.emoji);
+
+  return option;
+}
+
+// ---------------------------------------------------------------------------
 // Окно создания поста
 // ---------------------------------------------------------------------------
 async function openModal(interaction) {
@@ -259,15 +412,47 @@ async function openModal(interaction) {
     .setCustomId('rwmodal')
     .setTitle(String(modalData.title || FALLBACK.modal.title).slice(0, 45) || FALLBACK.modal.title);
 
-  const link = new LabelBuilder()
-    .setLabel(String(modalData.linkLabel || FALLBACK.modal.linkLabel).slice(0, 45))
-    .setTextInputComponent(
-      new TextInputBuilder()
-        .setCustomId('rw_link')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setMaxLength(500)
+  const baseLabel =
+    String(modalData.linkLabel || FALLBACK.modal.linkLabel).slice(0, 45) || FALLBACK.modal.linkLabel;
+  const selects = achievementSelectData(achievementChunks(), interaction.guild);
+
+  if (selects.length) {
+    selects.forEach(({ chunk, options }, index) => {
+      const label = (
+        selects.length > 1 ? `${baseLabel} ${index + 1}/${selects.length}` : baseLabel
+      ).slice(0, 45);
+
+      const select = new StringSelectMenuBuilder()
+        .setCustomId(`rw_ach_${index}`)
+        .setPlaceholder('Выберите достижение')
+        .setMinValues(1)
+        .setMaxValues(1)
+        .setRequired(false)
+        .addOptions(options.map(achievementOption));
+
+      const labelBuilder = new LabelBuilder()
+        .setLabel(label)
+        .setStringSelectMenuComponent(select);
+
+      const games = [...new Set(chunk.map((achievement) => shortGameName(achievement.game)))]
+        .filter(Boolean)
+        .join(' · ');
+      if (games) labelBuilder.setDescription(games.slice(0, 100));
+
+      modal.addComponents(labelBuilder);
+    });
+  } else {
+    // Резервный вариант без achievements.json — обычное поле ввода
+    modal.addComponents(
+      new LabelBuilder().setLabel(baseLabel).setTextInputComponent(
+        new TextInputBuilder()
+          .setCustomId('rw_link')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMaxLength(500)
+      )
     );
+  }
 
   const description = new LabelBuilder()
     .setLabel(String(modalData.descriptionLabel || FALLBACK.modal.descriptionLabel).slice(0, 45))
@@ -288,7 +473,7 @@ async function openModal(interaction) {
         .setMaxValues(4)
     );
 
-  modal.addComponents(link, description, file);
+  modal.addComponents(description, file);
 
   await interaction.showModal(modal);
 }
@@ -441,12 +626,48 @@ async function startDiscussionThread(message, values) {
 }
 
 async function submitPost(interaction) {
-  const link = interaction.fields.getTextInputValue('rw_link').trim();
   const description = interaction.fields.getTextInputValue('rw_description').trim();
+
+  // Достижение выбирается списком: значение пункта — id роли достижения
+  let link = '';
+  const selects = achievementSelectData(achievementChunks(), interaction.guild);
+
+  if (selects.length) {
+    const picked = [];
+    selects.forEach(({ options }, index) => {
+      let values = [];
+      try {
+        values = interaction.fields.getStringSelectValues(`rw_ach_${index}`) || [];
+      } catch {
+        values = [];
+      }
+      for (const value of values) {
+        const hit = options.find((option) => option.value === value);
+        if (hit) picked.push(hit.achievement);
+      }
+    });
+
+    if (picked.length > 1) {
+      await interaction.reply({
+        content: 'Выбери только одно достижение.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    link = picked[0]?.name || '';
+  } else {
+    // Резервный вариант, если achievements.json не прочитан
+    try {
+      link = interaction.fields.getTextInputValue('rw_link').trim();
+    } catch {
+      link = '';
+    }
+  }
 
   if (!link) {
     await interaction.reply({
-      content: 'Напиши название достижения.',
+      content: 'Выбери достижение из списка.',
       flags: MessageFlags.Ephemeral,
     });
     return;
