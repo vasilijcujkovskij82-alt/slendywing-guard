@@ -523,6 +523,14 @@ const server = http.createServer((req, res) => {
         );
       }
 
+      if ((data.publication?.description || '').length > 2000) {
+        return send(
+          res,
+          400,
+          JSON.stringify({ ok: false, error: 'Строка ссылки на видео больше 2000 символов — Discord не примет.' })
+        );
+      }
+
       if (data.thread?.autoArchiveDuration !== undefined) {
         const duration = Number(data.thread.autoArchiveDuration);
         if (![60, 1440, 4320, 10080].includes(duration)) {

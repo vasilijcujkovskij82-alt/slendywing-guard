@@ -339,10 +339,15 @@
         <textarea id="reviewPubText" data-field="review-pub-text" style="min-height:110px"></textarea>
         <div class="counter" id="reviewPubCounter">0 / 2000</div>
       </div>
+      <div class="row">
+        <label>Строка ссылки на видео (markdown Discord)</label>
+        <input type="text" id="reviewVideoText" placeholder="# ༻ 📁 │ {description}">
+      </div>
       <div class="hint">
         Плейсхолдеры: <b>{link}</b> — название достижения, <b>{member}</b> — упоминание автора,
-        <b>{displayName}</b> — имя на сервере, <b>{username}</b> — юзернейм.
-        Ссылка на видео идёт текстом, а фото и видео — сеткой под этим текстом (до 4 файлов).
+        <b>{description}</b> — ссылка на видео, <b>{displayName}</b> — имя на сервере,
+        <b>{username}</b> — юзернейм.
+        Строка ссылки показывается, только если участник её указал. Фото и видео идут сеткой под текстом (до 4 файлов).
       </div>
       <div class="row" style="margin-top:12px">
         <label>Роли модераторов, которые могут удалять посты (ID через запятую)</label>
@@ -1890,6 +1895,7 @@ function fillReviewDom() {
     reviewDescLabel: reviewState.modal?.descriptionLabel || '',
     reviewFileLabel: reviewState.modal?.fileLabel || '',
     reviewPubText: reviewState.publication?.text || '',
+    reviewVideoText: reviewState.publication?.description || '',
     reviewModRoles: (reviewState.moderatorRoles || []).join(', '),
     reviewThreadName: reviewState.thread?.name || '',
     reviewDeniedText: reviewState.deniedText || '',
@@ -1938,6 +1944,7 @@ function bindReviewFields() {
     reviewDescLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.descriptionLabel = value; },
     reviewFileLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.fileLabel = value; },
     reviewPubText: (value) => { reviewState.publication = reviewState.publication || {}; reviewState.publication.text = value; },
+    reviewVideoText: (value) => { reviewState.publication = reviewState.publication || {}; reviewState.publication.description = value; },
     reviewModRoles: (value) => { reviewState.moderatorRoles = parseIdList(value); },
     reviewThreadName: (value) => { reviewState.thread = reviewState.thread || {}; reviewState.thread.name = value.trim() || 'Обсуждение'; },
     reviewDeniedText: (value) => { reviewState.deniedText = value; },
@@ -1963,6 +1970,10 @@ async function saveReview() {
   }
   if ((reviewState.publication?.text || '').length > 2000) {
     setStatus('Текст над карточкой больше 2000 символов — Discord не примет.', 'err');
+    return;
+  }
+  if ((reviewState.publication?.description || '').length > 2000) {
+    setStatus('Строка ссылки на видео больше 2000 символов — Discord не примет.', 'err');
     return;
   }
   if ((reviewState.modal?.title || '').length > 45) {

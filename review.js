@@ -47,7 +47,10 @@ const FALLBACK = {
     descriptionLabel: 'Ссылка на видео (если файл весит больше 50 МБ)',
     fileLabel: 'Фото или видео',
   },
-  publication: { text: '# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}' },
+  publication: {
+    text: '# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}',
+    description: '# ༻ 📁 │ {description}',
+  },
   thread: { name: 'Обсуждение', autoArchiveDuration: 1440 },
   moderatorRoles: [],
   deniedText: '### Ошибка доступа',
@@ -319,7 +322,12 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
   const content = emojis.resolve(text).trim().slice(0, 2000);
   if (content) components.push(new TextDisplayBuilder().setContent(content));
   if (descriptionText) {
-    components.push(new TextDisplayBuilder().setContent(descriptionText.slice(0, 2000)));
+    // Ссылка на видео оформляется так же, как название: «# ༻ 📁 │ ссылка»
+    const linkTemplate = data.publication?.description || FALLBACK.publication.description;
+    const linkLine = fillTemplate(linkTemplate, { description: descriptionText })
+      .trim()
+      .slice(0, 2000);
+    if (linkLine) components.push(new TextDisplayBuilder().setContent(linkLine));
   }
 
   // Все фото и видео — сеткой без рамки: 1 крупно, 2 в ряд, 3–4 квадратом.
