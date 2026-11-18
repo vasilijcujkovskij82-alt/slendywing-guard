@@ -19,7 +19,7 @@
   },
   "publication": {
     "text": "# ༻ 🎖️ │ {link}\n## 𝄢 👤 │ {member}",
-    "description": "# ༻ 📁 │ {description}"
+    "description": "## ༻ 📁 │ {description}"
   },
   "thread": {
     "name": "Обсуждение",
