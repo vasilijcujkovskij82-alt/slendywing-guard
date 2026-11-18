@@ -37,9 +37,12 @@
       "label": "༻🛑│ТЕГИ",
       "text": "# ༻ВЫБОР ТЕГОВ УЧАСТНИКА༺\n\n** 𝄢❔│ Здесь вы можете забрать бесплатные теги!**\n\n# ༻ДОСТУПНЫЕ ТЕГИ༺\n\n- 𝄢│ <@&1572559132572262440> - тег в честь выхода GTA VI\n\n# ──༺༻──",
       "image": "https://raw.githubusercontent.com/vasilijcujkovskij82-alt/slendywing-guard/main/assets/roles-cat-tags.jpg",
-      "categoryRole": "༻🛑│ЗАБРАТЬ ТЕГ",
-      "extraRoles": [
-        "1572559132572262440"
+      "categoryRole": "",
+      "buttons": [
+        {
+          "label": "༻🛑│ЗАБРАТЬ ТЕГ",
+          "roleId": "1572559132572262440"
+        }
       ]
     },
     "colors": {
