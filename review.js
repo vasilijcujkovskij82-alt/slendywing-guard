@@ -28,12 +28,15 @@ const {
   FileBuilder,
   AttachmentBuilder,
   MessageFlags,
+  PermissionFlagsBits,
 } = require('discord.js');
 
 const emojis = require('./emojis');
 
 const REVIEW_PATH = path.join(__dirname, 'review.json');
 const DEFAULT_COLOR = 0x262b64;
+// id строки статуса: по нему «✅» и «❌» находят, что заменить
+const STATUS_ID = 777;
 
 const FALLBACK = {
   color: '#262B64',
@@ -48,8 +51,13 @@ const FALLBACK = {
     fileLabel: 'Фото или видео',
   },
   publication: {
-    text: '# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}',
-    description: '# ༻ 📁 │ {description}',
+    text: '# ༻ 🎖️ │ {link}\n## 𝄢 👤 │ {member}',
+    description: '## ༻ 📁 │ {description}',
+  },
+  status: {
+    pending: '## ༻ ➖ │ На рассмотрении',
+    accepted: '## ༻ ✅ │ Принято',
+    rejected: '## ༻ ❌ │ Отклонено',
   },
   thread: { name: 'Обсуждение', autoArchiveDuration: 1440 },
   moderatorRoles: [],
@@ -295,6 +303,11 @@ function isVideoFile(file) {
   return /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(String(file?.name || ''));
 }
 
+function statusText(data, key) {
+  const value = data?.status?.[key] ?? FALLBACK.status[key] ?? '';
+  return emojis.resolve(String(value)).trim().slice(0, 2000);
+}
+
 function publicationView(interaction, { link, description, uploaded = [] }) {
   const data = read();
   const member = interaction.member;
@@ -330,6 +343,11 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
     if (linkLine) components.push(new TextDisplayBuilder().setContent(linkLine));
   }
 
+  // Статус проверки — отдельная строка с id, чтобы «✅» и «❌» могли её заменить
+  components.push(
+    new TextDisplayBuilder().setId(STATUS_ID).setContent(statusText(data, 'pending'))
+  );
+
   // Все фото и видео — сеткой без рамки: 1 крупно, 2 в ряд, 3–4 квадратом.
   // Остальные файлы показываем отдельными компонентами, чтобы они не пропали в Components V2.
   if (media.length) {
@@ -349,6 +367,13 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
     deleteButton(data, user.id)
   );
   components.push(row);
+
+  // «✅» и «❌» видит каждый, но нажать может только администратор или модератор
+  const decisionRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('rwaccept').setStyle(ButtonStyle.Success).setEmoji('✅'),
+    new ButtonBuilder().setCustomId('rwreject').setStyle(ButtonStyle.Danger).setEmoji('❌')
+  );
+  components.push(decisionRow);
 
   const payload = {
     components,
@@ -487,12 +512,63 @@ async function deletePost(interaction, authorId) {
   await interaction.message.delete().catch(() => {});
 }
 
+// ---------------------------------------------------------------------------
+// Решение по достижению: «✅» принято, «❌» отклонено
+// ---------------------------------------------------------------------------
+function canModerate(interaction, data) {
+  const member = interaction.member;
+
+  if (member?.permissions?.has?.(PermissionFlagsBits.Administrator)) return true;
+
+  return (
+    Array.isArray(data.moderatorRoles) &&
+    data.moderatorRoles.some((id) => member?.roles?.cache?.has(id))
+  );
+}
+
+// Ищем компонент по id на любой глубине: строка статуса лежит прямо в сообщении
+function findComponentById(list, targetId) {
+  for (const component of list || []) {
+    if (component?.id === targetId) return component;
+    const nested = findComponentById(component?.components, targetId);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+async function decidePost(interaction, decision) {
+  const data = read();
+
+  if (!canModerate(interaction, data)) {
+    await interaction.reply({
+      content: data.deniedText || FALLBACK.deniedText,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const components = interaction.message.components.map((component) => component.toJSON());
+  const status = findComponentById(components, STATUS_ID);
+
+  if (!status) {
+    await interaction.reply({
+      content: 'Не нашёл строку статуса в этом посте.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  status.content = statusText(data, decision === 'accepted' ? 'accepted' : 'rejected');
+  await interaction.update({ components });
+}
+
 module.exports = {
   REVIEW_PATH,
   mainView,
   openModal,
   submitPost,
   deletePost,
+  decidePost,
   rememberThread,
   isOwnThread,
 };

@@ -21,6 +21,11 @@
     "text": "# ༻ 🎖️ │ {link}\n## 𝄢 👤 │ {member}",
     "description": "## ༻ 📁 │ {description}"
   },
+  "status": {
+    "pending": "## ༻ ➖ │ На рассмотрении",
+    "accepted": "## ༻ ✅ │ Принято",
+    "rejected": "## ༻ ❌ │ Отклонено"
+  },
   "thread": {
     "name": "Обсуждение",
     "autoArchiveDuration": 1440

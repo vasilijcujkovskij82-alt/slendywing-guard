@@ -356,6 +356,26 @@
     </div>
 
     <div class="card">
+      <h2>Статус проверки</h2>
+      <div class="row">
+        <label>На рассмотрении</label>
+        <input type="text" id="reviewStatusPending" placeholder="## ༻ ➖ │ На рассмотрении">
+      </div>
+      <div class="row">
+        <label>Принято</label>
+        <input type="text" id="reviewStatusAccepted" placeholder="## ༻ ✅ │ Принято">
+      </div>
+      <div class="row">
+        <label>Отклонено</label>
+        <input type="text" id="reviewStatusRejected" placeholder="## ༻ ❌ │ Отклонено">
+      </div>
+      <div class="hint">
+        Кнопки «✅» и «❌» под постом меняют эту строку. Нажимать их могут администраторы
+        и роли модераторов из блока «Публикация».
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Ветка обсуждения</h2>
       <div class="row">
         <label>Название ветки</label>
@@ -1896,6 +1916,9 @@ function fillReviewDom() {
     reviewFileLabel: reviewState.modal?.fileLabel || '',
     reviewPubText: reviewState.publication?.text || '',
     reviewVideoText: reviewState.publication?.description || '',
+    reviewStatusPending: reviewState.status?.pending || '## ༻ ➖ │ На рассмотрении',
+    reviewStatusAccepted: reviewState.status?.accepted || '## ༻ ✅ │ Принято',
+    reviewStatusRejected: reviewState.status?.rejected || '## ༻ ❌ │ Отклонено',
     reviewModRoles: (reviewState.moderatorRoles || []).join(', '),
     reviewThreadName: reviewState.thread?.name || '',
     reviewDeniedText: reviewState.deniedText || '',
@@ -1945,6 +1968,9 @@ function bindReviewFields() {
     reviewFileLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.fileLabel = value; },
     reviewPubText: (value) => { reviewState.publication = reviewState.publication || {}; reviewState.publication.text = value; },
     reviewVideoText: (value) => { reviewState.publication = reviewState.publication || {}; reviewState.publication.description = value; },
+    reviewStatusPending: (value) => { reviewState.status = reviewState.status || {}; reviewState.status.pending = value; },
+    reviewStatusAccepted: (value) => { reviewState.status = reviewState.status || {}; reviewState.status.accepted = value; },
+    reviewStatusRejected: (value) => { reviewState.status = reviewState.status || {}; reviewState.status.rejected = value; },
     reviewModRoles: (value) => { reviewState.moderatorRoles = parseIdList(value); },
     reviewThreadName: (value) => { reviewState.thread = reviewState.thread || {}; reviewState.thread.name = value.trim() || 'Обсуждение'; },
     reviewDeniedText: (value) => { reviewState.deniedText = value; },
@@ -1975,6 +2001,17 @@ async function saveReview() {
   if ((reviewState.publication?.description || '').length > 2000) {
     setStatus('Строка ссылки на видео больше 2000 символов — Discord не примет.', 'err');
     return;
+  }
+
+  for (const [key, label] of [
+    ['pending', 'На рассмотрении'],
+    ['accepted', 'Принято'],
+    ['rejected', 'Отклонено'],
+  ]) {
+    if ((reviewState.status?.[key] || '').length > 2000) {
+      setStatus(`Статус «${label}» больше 2000 символов — Discord не примет.`, 'err');
+      return;
+    }
   }
   if ((reviewState.modal?.title || '').length > 45) {
     setStatus('Заголовок окна больше 45 символов — Discord не примет.', 'err');

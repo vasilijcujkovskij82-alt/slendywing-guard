@@ -543,6 +543,16 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // rwaccept / rwreject — принять или отклонить достижение (админ или модератор)
+    if (id === 'rwaccept' || id === 'rwreject') {
+      try {
+        await review.decidePost(interaction, id === 'rwaccept' ? 'accepted' : 'rejected');
+      } catch (err) {
+        console.log(`  [!] Ошибка решения по достижению: ${err.message}`);
+      }
+      return;
+    }
+
     // games:* — каталог игр
     if (id.startsWith('games:')) {
       try {

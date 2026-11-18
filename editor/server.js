@@ -531,6 +531,20 @@ const server = http.createServer((req, res) => {
         );
       }
 
+      for (const [key, label] of [
+        ['pending', 'На рассмотрении'],
+        ['accepted', 'Принято'],
+        ['rejected', 'Отклонено'],
+      ]) {
+        if ((data.status?.[key] || '').length > 2000) {
+          return send(
+            res,
+            400,
+            JSON.stringify({ ok: false, error: `Статус «${label}» больше 2000 символов — Discord не примет.` })
+          );
+        }
+      }
+
       if (data.thread?.autoArchiveDuration !== undefined) {
         const duration = Number(data.thread.autoArchiveDuration);
         if (![60, 1440, 4320, 10080].includes(duration)) {
