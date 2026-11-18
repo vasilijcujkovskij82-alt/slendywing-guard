@@ -5,7 +5,7 @@
 // Всё оформление лежит в review.json и перечитывается на лету:
 //   /првдостижений -> главная карточка с кнопкой «➕»;
 //   «➕»           -> окно «Выставите достижение на проверку»: название, ссылка на видео и файлы (до 4);
-//   отправка      -> ответ на сообщение с «➕»: название и автор + карточки с ссылкой и картинками;
+//   отправка      -> ответ на сообщение с «➕»: название и автор, ссылка на видео и сетка фото/видео в рамке;
 //   «🗑️»         -> удаление публикации автором или модератором (без лишних сообщений).
 //
 // Реакции лайка/дизлайка сюда не добавляются.
@@ -22,7 +22,6 @@ const {
   TextInputStyle,
   LabelBuilder,
   FileUploadBuilder,
-  ContainerBuilder,
   TextDisplayBuilder,
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
@@ -323,28 +322,19 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
     components.push(new TextDisplayBuilder().setContent(descriptionText.slice(0, 2000)));
   }
 
-  // Все фото и видео — одной рамкой в виде сетки: 1 крупно, 2 в ряд, 3–4 квадратом.
-  // Остальные файлы показываем там же, чтобы они не пропали в сообщении Components V2.
-  const container = new ContainerBuilder().setAccentColor(parseColor(data.color));
-  let framed = false;
-
+  // Все фото и видео — сеткой без рамки: 1 крупно, 2 в ряд, 3–4 квадратом.
+  // Остальные файлы показываем отдельными компонентами, чтобы они не пропали в Components V2.
   if (media.length) {
     const gallery = new MediaGalleryBuilder();
     for (const file of media) {
       gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${file.name}`));
     }
-    container.addMediaGalleryComponents(gallery);
-    framed = true;
+    components.push(gallery);
   }
 
-  if (otherFiles.length) {
-    container.addFileComponents(
-      otherFiles.map((file) => new FileBuilder().setURL(`attachment://${file.name}`))
-    );
-    framed = true;
+  for (const file of otherFiles) {
+    components.push(new FileBuilder().setURL(`attachment://${file.name}`));
   }
-
-  if (framed) components.push(container);
 
   const row = new ActionRowBuilder().addComponents(
     createButton(data),
