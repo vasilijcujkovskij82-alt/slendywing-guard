@@ -38,15 +38,36 @@ const FALLBACK = {
   button: { label: '➕' },
   deleteButton: { emoji: '🗑️' },
   modal: {
-    title: 'Оформите пост',
-    linkLabel: 'Ссылка',
-    descriptionLabel: 'Описание',
+    title: 'Выставите достижение на проверку',
+    linkLabel: 'название достижение',
+    descriptionLabel: 'Ссылка на видео (если файл весит больше 50 МБ)',
     fileLabel: 'Фото или видео',
   },
   publication: { text: '# ༻ 🎖️│ {link}\n## 𝄢👤│ {member}' },
+  thread: { name: 'Обсуждение', autoArchiveDuration: 1440 },
   moderatorRoles: [],
   deniedText: '### Ошибка доступа',
 };
+
+// Ветки, созданные ботом под публикациями. Нужны, чтобы удалять только свои
+// системные сообщения «ветка создана» и не трогать чужие.
+const ownThreads = new Set();
+const OWN_THREADS_LIMIT = 1000;
+
+function rememberThread(id) {
+  const value = String(id || '').trim();
+  if (!value) return;
+  ownThreads.add(value);
+
+  while (ownThreads.size > OWN_THREADS_LIMIT) {
+    const oldest = ownThreads.values().next().value;
+    ownThreads.delete(oldest);
+  }
+}
+
+function isOwnThread(id) {
+  return ownThreads.has(String(id || '').trim());
+}
 
 let cached = null;
 let cachedMtimeMs = -1;
@@ -221,9 +242,9 @@ async function openModal(interaction) {
     .setTextInputComponent(
       new TextInputBuilder()
         .setCustomId('rw_description')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(true)
-        .setMaxLength(2000)
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setMaxLength(500)
     );
 
   const file = new LabelBuilder()
@@ -231,7 +252,7 @@ async function openModal(interaction) {
     .setFileUploadComponent(
       new FileUploadBuilder()
         .setCustomId('rw_file')
-        .setRequired(false)
+        .setRequired(true)
         .setMaxValues(1)
     );
 
@@ -272,7 +293,10 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
   const uploadedImage = uploaded.find(isImageFile);
   if (uploadedImage) embed.setImage(`attachment://${uploadedImage.name}`);
 
-  const row = new ActionRowBuilder().addComponents(deleteButton(data, user.id));
+  const row = new ActionRowBuilder().addComponents(
+    createButton(data),
+    deleteButton(data, user.id)
+  );
 
   const content = emojis.resolve(text).slice(0, 2000);
   const payload = {
@@ -310,13 +334,44 @@ async function sendPublication(interaction, sourceMessage, payload) {
   return interaction.channel.send(payload);
 }
 
+// ---------------------------------------------------------------------------
+// Ветка обсуждения под публикацией
+// ---------------------------------------------------------------------------
+function threadName(data, values) {
+  const raw = fillTemplate(data?.name || FALLBACK.thread.name, values);
+  return (raw.trim() || FALLBACK.thread.name).slice(0, 100);
+}
+
+// Id ветки совпадает с id сообщения, поэтому запоминаем его заранее —
+// уведомление о ветке может прийти раньше ответа API.
+async function startDiscussionThread(message, values) {
+  const data = read().thread || FALLBACK.thread;
+  const duration = Number(data.autoArchiveDuration);
+
+  rememberThread(message.id);
+
+  try {
+    const thread = await message.startThread({
+      name: threadName(data, values),
+      autoArchiveDuration: [60, 1440, 4320, 10080].includes(duration) ? duration : 1440,
+      reason: 'Обсуждение проверки достижения',
+    });
+    if (thread?.id) rememberThread(thread.id);
+    return thread;
+  } catch (err) {
+    ownThreads.delete(String(message.id));
+    console.log(`  [!] Не удалось создать ветку обсуждения: ${err.message}`);
+    return null;
+  }
+}
+
 async function submitPost(interaction) {
   const link = interaction.fields.getTextInputValue('rw_link').trim();
   const description = interaction.fields.getTextInputValue('rw_description').trim();
 
-  if (!link || !description) {
+  if (!link) {
     await interaction.reply({
-      content: 'Заполни ссылку и описание.',
+      content: 'Напиши название достижения.',
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -339,7 +394,13 @@ async function submitPost(interaction) {
     if (usedReply) await interaction.deleteReply().catch(() => {});
 
     const payload = publicationView(interaction, { link, description, uploaded });
-    await sendPublication(interaction, sourceMessage, payload);
+    const sent = await sendPublication(interaction, sourceMessage, payload);
+
+    if (sent) {
+      const username = interaction.user?.username || 'участник';
+      const displayName = interaction.member?.displayName || username;
+      await startDiscussionThread(sent, { link, username, displayName, member: username });
+    }
   } catch (err) {
     if (usedReply) await interaction.deleteReply().catch(() => {});
     await interaction
@@ -382,4 +443,6 @@ module.exports = {
   openModal,
   submitPost,
   deletePost,
+  rememberThread,
+  isOwnThread,
 };

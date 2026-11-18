@@ -428,14 +428,14 @@ client.on('channelCreate', async (channel) => {
 
 client.on('error', (err) => console.log(`  [!] Ошибка: ${err.message}`));
 
-// Сразу убираем из канала служебное «ветка создана» для наших рекламных веток
+// Сразу убираем из канала служебное «ветка создана» для наших веток
 client.on('messageCreate', async (message) => {
   if (!message.guild) return;
   if (message.type !== MessageType.ThreadCreated) return;
 
   try {
     const threadId = message.messageReference?.channelId || message.thread?.id;
-    if (!ads.isOwnThread(threadId)) return;
+    if (!ads.isOwnThread(threadId) && !review.isOwnThread(threadId)) return;
     await message.delete();
   } catch (err) {
     console.log(`  [!] Не удалось удалить уведомление о ветке: ${err.message}`);
