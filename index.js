@@ -819,3 +819,31 @@ if (PORT) {
     console.log(`  Самопинг каждые 10 минут: ${selfUrl}`);
   }
 }
+
+// Если связь с Discord потерялась и бот не вернулся сам — переподключаемся.
+let offlineSince = 0;
+setInterval(() => {
+  if (client.isReady()) {
+    offlineSince = 0;
+    return;
+  }
+
+  if (!offlineSince) offlineSince = Date.now();
+  if (Date.now() - offlineSince < 10 * 60 * 1000) return;
+
+  offlineSince = Date.now();
+  console.log('  [!] Нет связи с Discord дольше 10 минут — переподключаюсь...');
+
+  try {
+    client.destroy();
+  } catch {}
+
+  client.login(TOKEN).catch((err) => {
+    console.log(`  [!] Переподключение не удалось: ${err.message}`);
+  });
+}, 60 * 1000);
+
+// Одиночная ошибка в обработчике не должна ронять всего бота.
+process.on('unhandledRejection', (err) => {
+  console.log(`  [!] Необработанная ошибка: ${err?.message || err}`);
+});
