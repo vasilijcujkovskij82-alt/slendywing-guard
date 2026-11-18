@@ -14,6 +14,7 @@ const ROLES_PATH = path.join(ROOT, 'roles.json');
 const ADS_PATH = path.join(ROOT, 'ads.json');
 const GAMES_PATH = path.join(ROOT, 'games.json');
 const ACHIEVEMENTS_PATH = path.join(ROOT, 'achievements.json');
+const REVIEW_PATH = path.join(ROOT, 'review.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = 3060;
 
@@ -473,6 +474,73 @@ const server = http.createServer((req, res) => {
       }
 
       const result = commitAndPush(['achievements.json'], 'Update achievements via editor');
+      return send(res, result.ok ? 200 : 500, JSON.stringify(result));
+    });
+
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/review') {
+    try {
+      return send(res, 200, fs.readFileSync(REVIEW_PATH, 'utf8'));
+    } catch (err) {
+      return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/review') {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 2_000_000) req.destroy();
+    });
+
+    req.on('end', () => {
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Некорректный JSON' }));
+      }
+
+      if (!data || typeof data !== 'object' || !data.main || typeof data.main !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля main' }));
+      }
+
+      if ((data.main.text || '').length > 4096) {
+        return send(
+          res,
+          400,
+          JSON.stringify({ ok: false, error: 'Текст главной карточки больше 4096 символов — Discord не примет.' })
+        );
+      }
+
+      if ((data.publication?.text || '').length > 2000) {
+        return send(
+          res,
+          400,
+          JSON.stringify({ ok: false, error: 'Текст над карточкой больше 2000 символов — Discord не примет.' })
+        );
+      }
+
+      if (data.thread?.autoArchiveDuration !== undefined) {
+        const duration = Number(data.thread.autoArchiveDuration);
+        if (![60, 1440, 4320, 10080].includes(duration)) {
+          return send(
+            res,
+            400,
+            JSON.stringify({ ok: false, error: 'Автоархивация ветки: допустимо 60, 1440, 4320 или 10080 минут.' })
+          );
+        }
+      }
+
+      try {
+        fs.writeFileSync(REVIEW_PATH, JSON.stringify(data, null, 2) + '\n', 'utf8');
+      } catch (err) {
+        return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+      }
+
+      const result = commitAndPush(['review.json'], 'Update review command via editor');
       return send(res, result.ok ? 200 : 500, JSON.stringify(result));
     });
 

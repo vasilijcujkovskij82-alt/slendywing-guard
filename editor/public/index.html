@@ -66,6 +66,7 @@
     <button class="tab" data-tab="ads" type="button">Реклама</button>
     <button class="tab" data-tab="games" type="button">Игры</button>
     <button class="tab" data-tab="ach" type="button">Достижения</button>
+    <button class="tab" data-tab="review" type="button">Проверка достижений</button>
   </div>
   <span id="status" class="status"></span>
   <button class="btn" id="addBtn" type="button">+ Раздел</button>
@@ -280,6 +281,93 @@
     </div>
   </div>
 
+  <div id="reviewPanel" hidden>
+    <div class="card">
+      <h2>Проверка достижений · основное</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Цвет рамки (hex или RGB)</label>
+          <input type="text" id="reviewColor" placeholder="#262B64 или 38 43 100">
+        </div>
+        <div class="row">
+          <label>Автор карточки</label>
+          <input type="text" id="reviewAuthor" placeholder="༻𝐒𝐋𝐄𝐍𝐃𝐘𝐖𝐈𝐍𝐆༺">
+        </div>
+      </div>
+      <div class="row">
+        <label>Текст главной карточки</label>
+        <textarea id="reviewMainText" data-field="review-main-text" style="min-height:150px"></textarea>
+        <div class="counter" id="reviewMainCounter">0 / 4096</div>
+      </div>
+      <div class="row">
+        <label>Панорамная картинка (только на главной карточке)</label>
+        <input type="text" id="reviewMainImage" placeholder="https://...">
+      </div>
+      <div class="hint">Миниатюра главной карточки — всегда аватарка сервера.</div>
+    </div>
+
+    <div class="card">
+      <h2>Кнопки</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Кнопка «плюс»</label>
+          <input type="text" id="reviewButtonLabel" placeholder="➕">
+        </div>
+        <div class="row">
+          <label>Мусорный бак на публикациях</label>
+          <input type="text" id="reviewDeleteEmoji" placeholder="🗑️">
+        </div>
+      </div>
+      <div class="hint">«Плюс» есть на главной карточке и на каждой публикации. «Мусорный бак» — только на публикациях.</div>
+    </div>
+
+    <div class="card">
+      <h2>Окно проверки</h2>
+      <div class="grid">
+        <div class="row"><label>Заголовок окна</label><input type="text" id="reviewModalTitle" placeholder="Выставите достижение на проверку"></div>
+        <div class="row"><label>Поле «Название достижение»</label><input type="text" id="reviewLinkLabel" placeholder="Название достижение"></div>
+        <div class="row"><label>Поле «Ссылка на видео»</label><input type="text" id="reviewDescLabel" placeholder="Ссылка на видео (если файл больше 50 МБ)"></div>
+        <div class="row"><label>Поле «Фото или видео»</label><input type="text" id="reviewFileLabel" placeholder="Фото или видео"></div>
+      </div>
+      <div class="hint">Подпись поля в окне Discord — не больше 45 символов. Фото/видео обязательное, ссылка на видео — нет.</div>
+    </div>
+
+    <div class="card">
+      <h2>Публикация</h2>
+      <div class="row">
+        <label>Текст над карточкой (markdown Discord)</label>
+        <textarea id="reviewPubText" data-field="review-pub-text" style="min-height:110px"></textarea>
+        <div class="counter" id="reviewPubCounter">0 / 2000</div>
+      </div>
+      <div class="hint">
+        Плейсхолдеры: <b>{link}</b> — название достижения, <b>{member}</b> — упоминание автора,
+        <b>{displayName}</b> — имя на сервере, <b>{username}</b> — юзернейм.
+        Ссылка на видео и файл показываются внутри карточки под этим текстом.
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label>Роли модераторов, которые могут удалять посты (ID через запятую)</label>
+        <input type="text" id="reviewModRoles" placeholder="1294382199713300510">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ветка обсуждения</h2>
+      <div class="row">
+        <label>Название ветки</label>
+        <input type="text" id="reviewThreadName" placeholder="Обсуждение">
+      </div>
+      <div class="hint">Ветка создаётся автоматически под каждым постом. Служебное «ветка создана» бот сразу удаляет.</div>
+    </div>
+
+    <div class="card">
+      <h2>Сообщения</h2>
+      <div class="row">
+        <label>Нет прав на удаление</label>
+        <input type="text" id="reviewDeniedText" placeholder="### Ошибка доступа">
+      </div>
+    </div>
+  </div>
+
   <div id="gamesPanel" hidden>
     <div class="card">
       <h2>Игры · главная карточка</h2>
@@ -421,6 +509,7 @@ let rolesState = null;
 let adsState = null;
 let gamesState = null;
 let achievementsState = null;
+let reviewState = null;
 let activeTab = 'nav';
 let allEmojis = [];
 let lastField = null;
@@ -446,6 +535,7 @@ function switchTab(tab) {
   document.getElementById('adsPanel').hidden = tab !== 'ads';
   document.getElementById('gamesPanel').hidden = tab !== 'games';
   document.getElementById('achPanel').hidden = tab !== 'ach';
+  document.getElementById('reviewPanel').hidden = tab !== 'review';
   document.getElementById('addBtn').hidden = tab !== 'nav';
   document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
 
@@ -477,6 +567,13 @@ function switchTab(tab) {
     else if (changed) {
       fillAchievementsDom();
       setStatus('Достижения загружены', 'ok');
+    }
+  }
+  if (tab === 'review') {
+    if (!reviewState) loadReview();
+    else if (changed) {
+      fillReviewDom();
+      setStatus('Проверка достижений загружена', 'ok');
     }
   }
 }
@@ -1758,6 +1855,153 @@ async function saveAchievements() {
 }
 
 // ---------------------------------------------------------------------------
+// Проверка достижений (/првдостижений)
+// ---------------------------------------------------------------------------
+let reviewBindingsReady = false;
+
+function updateReviewCounters() {
+  const main = document.getElementById('reviewMainText');
+  const mainCounter = document.getElementById('reviewMainCounter');
+  if (main && mainCounter) {
+    mainCounter.textContent = `${main.value.length} / 4096`;
+    mainCounter.style.color = main.value.length > 4096 ? '#f08a8a' : '';
+  }
+
+  const pub = document.getElementById('reviewPubText');
+  const pubCounter = document.getElementById('reviewPubCounter');
+  if (pub && pubCounter) {
+    pubCounter.textContent = `${pub.value.length} / 2000`;
+    pubCounter.style.color = pub.value.length > 2000 ? '#f08a8a' : '';
+  }
+}
+
+function fillReviewDom() {
+  if (!reviewState) return;
+
+  const values = {
+    reviewColor: reviewState.color || '#262B64',
+    reviewAuthor: reviewState.author || '',
+    reviewMainText: reviewState.main?.text || '',
+    reviewMainImage: reviewState.main?.image || '',
+    reviewButtonLabel: reviewState.button?.label || '➕',
+    reviewDeleteEmoji: reviewState.deleteButton?.emoji || '🗑️',
+    reviewModalTitle: reviewState.modal?.title || '',
+    reviewLinkLabel: reviewState.modal?.linkLabel || '',
+    reviewDescLabel: reviewState.modal?.descriptionLabel || '',
+    reviewFileLabel: reviewState.modal?.fileLabel || '',
+    reviewPubText: reviewState.publication?.text || '',
+    reviewModRoles: (reviewState.moderatorRoles || []).join(', '),
+    reviewThreadName: reviewState.thread?.name || '',
+    reviewDeniedText: reviewState.deniedText || '',
+  };
+
+  for (const [id, value] of Object.entries(values)) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  }
+
+  updateReviewCounters();
+}
+
+async function loadReview() {
+  setStatus('Загружаю проверку достижений...');
+  try {
+    const res = await fetch('/api/review');
+    const data = await res.json();
+    if (data && data.ok === false) {
+      setStatus('Проверка достижений: ' + (data.error || 'ошибка'), 'err');
+      return;
+    }
+    reviewState = data;
+  } catch (err) {
+    setStatus('Проверка достижений не загрузилась: ' + err.message, 'err');
+    return;
+  }
+
+  fillReviewDom();
+  setStatus('Проверка достижений загружена', 'ok');
+}
+
+function bindReviewFields() {
+  if (reviewBindingsReady) return;
+  reviewBindingsReady = true;
+
+  const fields = {
+    reviewColor: (value) => { reviewState.color = value.trim() || '#262B64'; },
+    reviewAuthor: (value) => { reviewState.author = value; },
+    reviewMainText: (value) => { reviewState.main = reviewState.main || {}; reviewState.main.text = value; },
+    reviewMainImage: (value) => { reviewState.main = reviewState.main || {}; reviewState.main.image = value.trim(); },
+    reviewButtonLabel: (value) => { reviewState.button = reviewState.button || {}; reviewState.button.label = value.trim() || '➕'; },
+    reviewDeleteEmoji: (value) => { reviewState.deleteButton = reviewState.deleteButton || {}; reviewState.deleteButton.emoji = value.trim() || '🗑️'; },
+    reviewModalTitle: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.title = value; },
+    reviewLinkLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.linkLabel = value; },
+    reviewDescLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.descriptionLabel = value; },
+    reviewFileLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.fileLabel = value; },
+    reviewPubText: (value) => { reviewState.publication = reviewState.publication || {}; reviewState.publication.text = value; },
+    reviewModRoles: (value) => { reviewState.moderatorRoles = parseIdList(value); },
+    reviewThreadName: (value) => { reviewState.thread = reviewState.thread || {}; reviewState.thread.name = value.trim() || 'Обсуждение'; },
+    reviewDeniedText: (value) => { reviewState.deniedText = value; },
+  };
+
+  for (const [id, apply] of Object.entries(fields)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.addEventListener('input', () => {
+      if (!reviewState) return;
+      apply(el.value);
+      if (id === 'reviewMainText' || id === 'reviewPubText') updateReviewCounters();
+    });
+  }
+}
+
+async function saveReview() {
+  if (!reviewState) return;
+
+  if ((reviewState.main?.text || '').length > 4096) {
+    setStatus('Текст главной карточки больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+  if ((reviewState.publication?.text || '').length > 2000) {
+    setStatus('Текст над карточкой больше 2000 символов — Discord не примет.', 'err');
+    return;
+  }
+  if ((reviewState.modal?.title || '').length > 45) {
+    setStatus('Заголовок окна больше 45 символов — Discord не примет.', 'err');
+    return;
+  }
+
+  for (const [id, label] of [
+    ['linkLabel', 'Название достижение'],
+    ['descriptionLabel', 'Ссылка на видео'],
+    ['fileLabel', 'Фото или видео'],
+  ]) {
+    if ((reviewState.modal?.[id] || '').length > 45) {
+      setStatus(`Подпись поля «${label}» больше 45 символов — Discord не примет.`, 'err');
+      return;
+    }
+  }
+
+  setStatus('Сохраняю...');
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reviewState),
+    });
+    const data = await res.json();
+    if (data.ok) setStatus(data.message, 'ok');
+    else setStatus('Ошибка: ' + (data.error || 'неизвестно'), 'err');
+  } catch (err) {
+    setStatus('Ошибка сети: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Кнопки (все кнопки бота в одном месте)
 // ---------------------------------------------------------------------------
 async function loadButtons() {
@@ -2299,6 +2543,11 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     return;
   }
 
+  if (activeTab === 'review') {
+    await saveReview();
+    return;
+  }
+
   state.color = document.getElementById('color').value.trim() || '#262B64';
   state.bannerUrl = document.getElementById('bannerUrl').value.trim();
 
@@ -2348,6 +2597,7 @@ switchTab('nav');
 bindAdsFields();
 bindGamesFields();
 bindAchFields();
+bindReviewFields();
 load().catch((err) => setStatus('Не загрузилось: ' + err.message, 'err'));
 </script>
 </body>
