@@ -523,10 +523,10 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    // rwcreate — открыть окно создания поста на проверку достижений
+    // rwcreate — открыть выбор игры и достижения
     if (id === 'rwcreate') {
       try {
-        await review.openModal(interaction);
+        await review.openGameMenu(interaction);
       } catch (err) {
         console.log(`  [!] Ошибка окна проверки достижений: ${err.message}`);
       }
@@ -568,6 +568,26 @@ client.on('interactionCreate', async (interaction) => {
 
   // Селект цветов в меню ролей и выбор игры в /игры
   if (interaction.isStringSelectMenu()) {
+    // rwgame:<id карточки> — выбрали игру для проверки достижения
+    if (interaction.customId.startsWith('rwgame:')) {
+      try {
+        await review.pickGame(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка выбора игры для проверки: ${err.message}`);
+      }
+      return;
+    }
+
+    // rwach:<id карточки>;<игра> — выбрали достижение, открываем окно
+    if (interaction.customId.startsWith('rwach:')) {
+      try {
+        await review.pickAchievement(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка выбора достижения: ${err.message}`);
+      }
+      return;
+    }
+
     if (interaction.customId.startsWith('rolecolor:')) {
       try {
         await roles.pickColor(interaction, interaction.customId.slice(10));
@@ -607,7 +627,7 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    if (interaction.customId === 'rwmodal') {
+    if (interaction.customId.startsWith('rwmodal')) {
       try {
         await review.submitPost(interaction);
       } catch (err) {

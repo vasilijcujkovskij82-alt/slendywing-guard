@@ -325,13 +325,15 @@
       <h2>Окно проверки</h2>
       <div class="grid">
         <div class="row"><label>Заголовок окна</label><input type="text" id="reviewModalTitle" placeholder="Выставите достижение на проверку"></div>
-        <div class="row"><label>Подпись списка «Достижение»</label><input type="text" id="reviewLinkLabel" placeholder="Достижение"></div>
+        <div class="row"><label>Подсказка в списке игр</label><input type="text" id="reviewGameLabel" placeholder="Выбери игру"></div>
+        <div class="row"><label>Подсказка в списке достижений</label><input type="text" id="reviewAchievementLabel" placeholder="Выбери достижение"></div>
         <div class="row"><label>Поле «Ссылка на видео»</label><input type="text" id="reviewDescLabel" placeholder="Ссылка на видео (если файл больше 50 МБ)"></div>
         <div class="row"><label>Поле «Фото или видео»</label><input type="text" id="reviewFileLabel" placeholder="Фото или видео"></div>
       </div>
       <div class="hint">
-        Вместо ввода названия — список достижений. Он собирается из вкладки «Достижения»,
-        а подписи пунктов — роли достижений с сервера. Подпись в окне Discord — не больше 45 символов.
+        Сначала выбирается игра, потом достижение из неё — и сразу открывается окно со ссылкой и файлами.
+        Списки собираются из вкладки «Достижения», подписи пунктов — роли достижений с сервера.
+        Подсказки в списках — до 150 символов, подписи полей окна — до 45.
         Фото/видео обязательное (можно до 4 файлов), ссылка на видео — нет.
       </div>
     </div>
@@ -1915,7 +1917,8 @@ function fillReviewDom() {
     reviewButtonLabel: reviewState.button?.label || '➕',
     reviewDeleteEmoji: reviewState.deleteButton?.emoji || '🗑️',
     reviewModalTitle: reviewState.modal?.title || '',
-    reviewLinkLabel: reviewState.modal?.linkLabel || '',
+    reviewGameLabel: reviewState.modal?.gameLabel || '',
+    reviewAchievementLabel: reviewState.modal?.achievementLabel || '',
     reviewDescLabel: reviewState.modal?.descriptionLabel || '',
     reviewFileLabel: reviewState.modal?.fileLabel || '',
     reviewPubText: reviewState.publication?.text || '',
@@ -1967,7 +1970,8 @@ function bindReviewFields() {
     reviewButtonLabel: (value) => { reviewState.button = reviewState.button || {}; reviewState.button.label = value.trim() || '➕'; },
     reviewDeleteEmoji: (value) => { reviewState.deleteButton = reviewState.deleteButton || {}; reviewState.deleteButton.emoji = value.trim() || '🗑️'; },
     reviewModalTitle: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.title = value; },
-    reviewLinkLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.linkLabel = value; },
+    reviewGameLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.gameLabel = value; },
+    reviewAchievementLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.achievementLabel = value; },
     reviewDescLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.descriptionLabel = value; },
     reviewFileLabel: (value) => { reviewState.modal = reviewState.modal || {}; reviewState.modal.fileLabel = value; },
     reviewPubText: (value) => { reviewState.publication = reviewState.publication || {}; reviewState.publication.text = value; },
@@ -2023,7 +2027,16 @@ async function saveReview() {
   }
 
   for (const [id, label] of [
-    ['linkLabel', 'Достижение'],
+    ['gameLabel', 'Выбери игру'],
+    ['achievementLabel', 'Выбери достижение'],
+  ]) {
+    if ((reviewState.modal?.[id] || '').length > 150) {
+      setStatus(`Подсказка «${label}» больше 150 символов — Discord не примет.`, 'err');
+      return;
+    }
+  }
+
+  for (const [id, label] of [
     ['descriptionLabel', 'Ссылка на видео'],
     ['fileLabel', 'Фото или видео'],
   ]) {
