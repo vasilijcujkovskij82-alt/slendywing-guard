@@ -22,6 +22,11 @@ const {
   TextInputStyle,
   LabelBuilder,
   FileUploadBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+  FileBuilder,
   AttachmentBuilder,
   MessageFlags,
 } = require('discord.js');
@@ -281,6 +286,13 @@ async function openModal(interaction) {
 // ---------------------------------------------------------------------------
 // Публикация
 // ---------------------------------------------------------------------------
+function isVideoFile(file) {
+  const type = String(file?.type || '');
+  if (type.startsWith('video/')) return true;
+  if (type) return false;
+  return /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(String(file?.name || ''));
+}
+
 function publicationView(interaction, { link, description, uploaded = [] }) {
   const data = read();
   const member = interaction.member;
@@ -301,44 +313,50 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
 
   // «Ссылка на видео» — необязательное поле: пустую строку Discord не принимает
   const descriptionText = emojis.resolve(description || '').trim();
-  const images = uploaded.filter(isImageFile);
+  const media = uploaded.filter((file) => isImageFile(file) || isVideoFile(file));
+  const otherFiles = uploaded.filter((file) => !media.includes(file));
 
-  // Карточек нет, если нечего показывать: только текст над ними
-  const embeds = [];
+  const components = [];
+  const content = emojis.resolve(text).trim().slice(0, 2000);
+  if (content) components.push(new TextDisplayBuilder().setContent(content));
   if (descriptionText) {
-    embeds.push(
-      new EmbedBuilder()
-        .setColor(parseColor(data.color))
-        .setDescription(descriptionText.slice(0, 4096))
-    );
+    components.push(new TextDisplayBuilder().setContent(descriptionText.slice(0, 2000)));
   }
 
-  // До 4 картинок: первая — в карточке с описанием, остальные — отдельными карточками
-  for (const image of images) {
-    const embed = new EmbedBuilder()
-      .setColor(parseColor(data.color))
-      .setImage(`attachment://${image.name}`);
+  // Все фото и видео — одной рамкой в виде сетки: 1 крупно, 2 в ряд, 3–4 квадратом.
+  // Остальные файлы показываем там же, чтобы они не пропали в сообщении Components V2.
+  const container = new ContainerBuilder().setAccentColor(parseColor(data.color));
+  let framed = false;
 
-    if (embeds.length === 1 && !embeds[0].data.image) {
-      embeds[0].setImage(`attachment://${image.name}`);
-      continue;
+  if (media.length) {
+    const gallery = new MediaGalleryBuilder();
+    for (const file of media) {
+      gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${file.name}`));
     }
-
-    embeds.push(embed);
+    container.addMediaGalleryComponents(gallery);
+    framed = true;
   }
+
+  if (otherFiles.length) {
+    container.addFileComponents(
+      otherFiles.map((file) => new FileBuilder().setURL(`attachment://${file.name}`))
+    );
+    framed = true;
+  }
+
+  if (framed) components.push(container);
 
   const row = new ActionRowBuilder().addComponents(
     createButton(data),
     deleteButton(data, user.id)
   );
+  components.push(row);
 
-  const content = emojis.resolve(text).slice(0, 2000);
   const payload = {
-    content: content || undefined,
-    components: [row],
+    components,
     allowedMentions: { parse: [] },
+    flags: MessageFlags.IsComponentsV2,
   };
-  if (embeds.length) payload.embeds = embeds;
   if (uploaded.length) {
     payload.files = uploaded.map(
       (file) => new AttachmentBuilder(file.attachment, { name: file.name })
