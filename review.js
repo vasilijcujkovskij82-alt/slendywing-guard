@@ -371,7 +371,7 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
   // «✅» и «❌» видит каждый, но нажать может только администратор или модератор
   const decisionRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('rwaccept').setStyle(ButtonStyle.Success).setEmoji('✅'),
-    new ButtonBuilder().setCustomId('rwreject').setStyle(ButtonStyle.Danger).setEmoji('❌')
+    new ButtonBuilder().setCustomId('rwreject').setStyle(ButtonStyle.Secondary).setEmoji('❌')
   );
   components.push(decisionRow);
 
