@@ -4,8 +4,8 @@
 //
 // Всё оформление лежит в review.json и перечитывается на лету:
 //   /првдостижений -> главная карточка с кнопкой «➕»;
-//   «➕»           -> окно «Оформите пост»: ссылка, описание и файл (фото или видео);
-//   отправка      -> ответ на сообщение с «➕»: ссылка и автор + карточка с описанием и файлом;
+//   «➕»           -> окно «Выставите достижение на проверку»: название, ссылка на видео и файлы (до 4);
+//   отправка      -> ответ на сообщение с «➕»: название и автор + карточки с ссылкой и картинками;
 //   «🗑️»         -> удаление публикации автором или модератором (без лишних сообщений).
 //
 // Реакции лайка/дизлайка сюда не добавляются.
@@ -170,6 +170,23 @@ async function downloadUploadedFiles(interaction) {
     }
   }
 
+  // Имена вложений должны быть уникальными — иначе Discord отклонит сообщение
+  const used = new Set();
+  for (const file of files) {
+    if (!used.has(file.name)) {
+      used.add(file.name);
+      continue;
+    }
+
+    const dot = file.name.lastIndexOf('.');
+    const base = dot > 0 ? file.name.slice(0, dot) : file.name;
+    const ext = dot > 0 ? file.name.slice(dot) : '';
+    let index = 2;
+    while (used.has(`${base}-${index}${ext}`)) index += 1;
+    file.name = `${base}-${index}${ext}`;
+    used.add(file.name);
+  }
+
   return files;
 }
 
@@ -253,7 +270,7 @@ async function openModal(interaction) {
       new FileUploadBuilder()
         .setCustomId('rw_file')
         .setRequired(true)
-        .setMaxValues(1)
+        .setMaxValues(4)
     );
 
   modal.addComponents(link, description, file);
@@ -271,7 +288,6 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
 
   const username = user?.username || 'участник';
   const displayName = member?.displayName || username;
-  const avatar = member?.displayAvatarURL?.({ size: 128 }) || user?.displayAvatarURL?.({ size: 128 });
 
   // Ссылка и автор — обычным текстом над карточкой
   const text = fillTemplate(data.publication?.text || FALLBACK.publication.text, {
@@ -283,18 +299,33 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
     displayName,
   });
 
-  const embed = new EmbedBuilder()
-    .setColor(parseColor(data.color))
-    // Автор карточки — тот, кто отправил пост
-    .setAuthor({ name: username, iconURL: avatar });
-
   // «Ссылка на видео» — необязательное поле: пустую строку Discord не принимает
   const descriptionText = emojis.resolve(description || '').trim();
-  if (descriptionText) embed.setDescription(descriptionText.slice(0, 4096));
+  const images = uploaded.filter(isImageFile);
 
-  // Фото с устройства показываем в карточке, видео — вложением под ней
-  const uploadedImage = uploaded.find(isImageFile);
-  if (uploadedImage) embed.setImage(`attachment://${uploadedImage.name}`);
+  // Карточек нет, если нечего показывать: только текст над ними
+  const embeds = [];
+  if (descriptionText) {
+    embeds.push(
+      new EmbedBuilder()
+        .setColor(parseColor(data.color))
+        .setDescription(descriptionText.slice(0, 4096))
+    );
+  }
+
+  // До 4 картинок: первая — в карточке с описанием, остальные — отдельными карточками
+  for (const image of images) {
+    const embed = new EmbedBuilder()
+      .setColor(parseColor(data.color))
+      .setImage(`attachment://${image.name}`);
+
+    if (embeds.length === 1 && !embeds[0].data.image) {
+      embeds[0].setImage(`attachment://${image.name}`);
+      continue;
+    }
+
+    embeds.push(embed);
+  }
 
   const row = new ActionRowBuilder().addComponents(
     createButton(data),
@@ -304,10 +335,10 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
   const content = emojis.resolve(text).slice(0, 2000);
   const payload = {
     content: content || undefined,
-    embeds: [embed],
     components: [row],
     allowedMentions: { parse: [] },
   };
+  if (embeds.length) payload.embeds = embeds;
   if (uploaded.length) {
     payload.files = uploaded.map(
       (file) => new AttachmentBuilder(file.attachment, { name: file.name })
