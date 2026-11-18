@@ -286,8 +286,11 @@ function publicationView(interaction, { link, description, uploaded = [] }) {
   const embed = new EmbedBuilder()
     .setColor(parseColor(data.color))
     // Автор карточки — тот, кто отправил пост
-    .setAuthor({ name: username, iconURL: avatar })
-    .setDescription(emojis.resolve(description || '').slice(0, 4096));
+    .setAuthor({ name: username, iconURL: avatar });
+
+  // «Ссылка на видео» — необязательное поле: пустую строку Discord не принимает
+  const descriptionText = emojis.resolve(description || '').trim();
+  if (descriptionText) embed.setDescription(descriptionText.slice(0, 4096));
 
   // Фото с устройства показываем в карточке, видео — вложением под ней
   const uploadedImage = uploaded.find(isImageFile);
