@@ -21,6 +21,8 @@ const {
   TextInputStyle,
   LabelBuilder,
   FileUploadBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
   AttachmentBuilder,
   MessageFlags,
 } = require('discord.js');
@@ -29,6 +31,8 @@ const emojis = require('./emojis');
 
 const ADS_PATH = path.join(__dirname, 'ads.json');
 const DEFAULT_COLOR = 0x262b64;
+// Цвет рамки отказа в действии: 134 53 53
+const DENIED_COLOR = 0x863535;
 
 const FALLBACK = {
   color: '#262B64',
@@ -46,7 +50,7 @@ const FALLBACK = {
   thread: { name: 'Обсуждение', autoArchiveDuration: 1440 },
   reactions: { like: '👍', dislike: '👎' },
   moderatorRoles: [],
-  deniedText: '### Ошибка доступа',
+  deniedText: '## ༻ ❌ │ Действие невозможно',
 };
 
 // Ветки, созданные ботом для рекламы. Нужны, чтобы удалять только свои
@@ -437,6 +441,25 @@ async function submitAd(interaction) {
 // ---------------------------------------------------------------------------
 // Удаление публикации
 // ---------------------------------------------------------------------------
+// «Действие невозможно» — в рамке, чтобы отказ выглядел аккуратно
+function deniedView(data) {
+  const text = emojis
+    .resolve(String(data.deniedText || FALLBACK.deniedText))
+    .trim()
+    .slice(0, 2000);
+
+  return {
+    flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+    components: [
+      new ContainerBuilder()
+        .setAccentColor(DENIED_COLOR)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(text || FALLBACK.deniedText)
+        ),
+    ],
+  };
+}
+
 async function deleteAd(interaction, authorId) {
   const data = read();
   const member = interaction.member;
@@ -447,10 +470,7 @@ async function deleteAd(interaction, authorId) {
     data.moderatorRoles.some((id) => member?.roles?.cache?.has(id));
 
   if (!isAuthor && !isModerator) {
-    await interaction.reply({
-      content: data.deniedText || FALLBACK.deniedText,
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(deniedView(data));
     return;
   }
 

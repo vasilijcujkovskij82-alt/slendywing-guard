@@ -24,6 +24,7 @@ const {
   StringSelectMenuOptionBuilder,
   LabelBuilder,
   FileUploadBuilder,
+  ContainerBuilder,
   TextDisplayBuilder,
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
@@ -37,6 +38,8 @@ const emojis = require('./emojis');
 
 const REVIEW_PATH = path.join(__dirname, 'review.json');
 const DEFAULT_COLOR = 0x262b64;
+// Цвет рамки отказа в действии: 134 53 53
+const DENIED_COLOR = 0x863535;
 // id строки статуса: по нему «✅» и «❌» находят, что заменить
 const STATUS_ID = 777;
 
@@ -70,7 +73,7 @@ const FALLBACK = {
   },
   thread: { name: 'Обсуждение', autoArchiveDuration: 1440 },
   moderatorRoles: [],
-  deniedText: '### Ошибка доступа',
+  deniedText: '## ༻ ❌ │ Действие невозможно',
 };
 
 // Ветки, созданные ботом под публикациями. Нужны, чтобы удалять только свои
@@ -715,6 +718,25 @@ async function submitPost(interaction) {
 // ---------------------------------------------------------------------------
 // Удаление публикации
 // ---------------------------------------------------------------------------
+// «Действие невозможно» — в рамке, чтобы отказ выглядел аккуратно
+function deniedView(data) {
+  const text = emojis
+    .resolve(String(data.deniedText || FALLBACK.deniedText))
+    .trim()
+    .slice(0, 2000);
+
+  return {
+    flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+    components: [
+      new ContainerBuilder()
+        .setAccentColor(DENIED_COLOR)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(text || FALLBACK.deniedText)
+        ),
+    ],
+  };
+}
+
 async function deletePost(interaction, authorId) {
   const data = read();
   const member = interaction.member;
@@ -725,10 +747,7 @@ async function deletePost(interaction, authorId) {
     data.moderatorRoles.some((id) => member?.roles?.cache?.has(id));
 
   if (!isAuthor && !isModerator) {
-    await interaction.reply({
-      content: data.deniedText || FALLBACK.deniedText,
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(deniedView(data));
     return;
   }
 
@@ -765,10 +784,7 @@ async function decidePost(interaction, decision) {
   const data = read();
 
   if (!canModerate(interaction, data)) {
-    await interaction.reply({
-      content: data.deniedText || FALLBACK.deniedText,
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(deniedView(data));
     return;
   }
 
