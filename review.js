@@ -368,14 +368,11 @@ function achievementSelectData(achievements, guild) {
   });
 }
 
-function achievementOption({ achievement, role, value }) {
+function achievementOption({ achievement, value }) {
   const option = new StringSelectMenuOptionBuilder()
     .setLabel(achievement.name.slice(0, 100))
     .setValue(value);
 
-  // Подпись пункта — роль, которую выдают за достижение
-  const description = role ? role.name : achievement.description;
-  if (description) option.setDescription(String(description).slice(0, 100));
   if (achievement.emoji) option.setEmoji(achievement.emoji);
 
   return option;
