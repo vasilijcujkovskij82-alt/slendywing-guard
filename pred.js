@@ -23,6 +23,7 @@ const {
   TextInputStyle,
   LabelBuilder,
   UserSelectMenuBuilder,
+  StringSelectMenuBuilder,
   ContainerBuilder,
   TextDisplayBuilder,
   MessageFlags,
@@ -209,6 +210,21 @@ function textField(customId, label, maxLength = 100) {
     );
 }
 
+// Список чисел 1–3 для «Кол-во предупреждений» и «Акт»
+function numberSelect(customId, label) {
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(customId)
+    .setMinValues(1)
+    .setMaxValues(1)
+    .addOptions(
+      ['1', '2', '3'].map((value) => ({ label: value, value }))
+    );
+
+  return new LabelBuilder()
+    .setLabel(String(label).slice(0, 45))
+    .setStringSelectMenuComponent(select);
+}
+
 async function openModal(interaction) {
   const data = read();
 
@@ -237,8 +253,8 @@ async function openModal(interaction) {
       ),
     textField('pred_chapter', label('chapterLabel')),
     textField('pred_point', label('pointLabel')),
-    textField('pred_count', label('countLabel'), 3),
-    textField('pred_act', label('actLabel'))
+    numberSelect('pred_count', label('countLabel')),
+    numberSelect('pred_act', label('actLabel'))
   );
 
   await interaction.showModal(modal);
@@ -292,8 +308,19 @@ async function submitPred(interaction) {
 
   const chapter = interaction.fields.getTextInputValue('pred_chapter').trim();
   const point = interaction.fields.getTextInputValue('pred_point').trim();
-  const countRaw = interaction.fields.getTextInputValue('pred_count').trim();
-  const act = interaction.fields.getTextInputValue('pred_act').trim();
+
+  let countRaw = '';
+  let act = '';
+  try {
+    countRaw = String(interaction.fields.getStringSelectValues('pred_count')?.[0] || '').trim();
+  } catch {
+    countRaw = '';
+  }
+  try {
+    act = String(interaction.fields.getStringSelectValues('pred_act')?.[0] || '').trim();
+  } catch {
+    act = '';
+  }
 
   if (!user) {
     await interaction.reply({
@@ -303,22 +330,23 @@ async function submitPred(interaction) {
     return;
   }
 
-  if (!chapter || !point || !act) {
+  if (!chapter || !point) {
     await interaction.reply({
-      content: 'Заполни главу, пункт и акт.',
+      content: 'Заполни главу и пункт.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  if (!['1', '2', '3'].includes(countRaw) || !['1', '2', '3'].includes(act)) {
+    await interaction.reply({
+      content: 'Выбери кол-во предупреждений и акт от 1 до 3.',
       flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
   const count = Number.parseInt(countRaw, 10);
-  if (!Number.isFinite(count) || count < 1 || String(count) !== countRaw) {
-    await interaction.reply({
-      content: 'Кол-во предупреждений за акт — целое число больше нуля.',
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
 
   // Сообщение с «➕» запоминаем до deferUpdate — потом interaction.message пустеет
   const parts = String(interaction.customId || '').split(':');
