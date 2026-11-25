@@ -7,6 +7,9 @@
   "button": {
     "label": "➕"
   },
+  "deleteButton": {
+    "emoji": "🗑️"
+  },
   "modal": {
     "title": "Выдача предупреждений",
     "memberLabel": "Участник",
@@ -16,7 +19,9 @@
     "actLabel": "Акт"
   },
   "publication": {
-    "text": "# ༻ 🛡️ │ ПРЕДУПРЕЖДЕНИЕ\n## 𝄢 👤 │ {member}\n## ༻ 📖 │ Глава: {chapter}\n## ༻ 📄 │ Пункт: {point}\n## ༻ ⚠️ │ Кол-во предупреждений за акт: {count}\n## ༻ 📜 │ Акт: {act}"
+    "content": "### ༻❗│ {member}",
+    "author": "༻❗│ Предупреждение",
+    "description": "*𝄢 🛡️ │ Модератор: {moderator}*\n\n𝄢│ Участник: **{member}**\n𝄢│ Глава: **{chapter}**\n𝄢│ Пункт: **{point}**\n𝄢│ Кол-во предупреждений: **{count} /3**\n𝄢│ АКТ: **{act}**"
   },
   "moderatorRoles": [
     "1530261219766702140",

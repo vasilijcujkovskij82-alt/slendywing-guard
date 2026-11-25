@@ -5,7 +5,8 @@
 // Всё оформление лежит в pred.json и перечитывается на лету:
 //   /пред -> карточка с кнопкой «➕»;
 //   «➕»  -> окно: участник, глава, пункт, кол-во предупреждений за акт, акт;
-//   отправка -> карточка предупреждения в канале.
+//   отправка -> предупреждение публикуется ответом на сообщение с «➕»;
+//   «🗑️» -> удаление предупреждения (только администраторы и роли из pred.json).
 //
 // Пользоваться командой и кнопкой могут администраторы по правам,
 // владелец сервера и роли из moderatorRoles.
@@ -40,6 +41,7 @@ const FALLBACK = {
   author: '𝄢 SLENDYWING 𝄢',
   main: { text: '## ༻ 🛡️ │ ВЫДАЧА ПРЕДУПРЕЖДЕНИЙ' },
   button: { label: '➕' },
+  deleteButton: { emoji: '🗑️' },
   modal: {
     title: 'Выдача предупреждений',
     memberLabel: 'Участник',
@@ -49,13 +51,15 @@ const FALLBACK = {
     actLabel: 'Акт',
   },
   publication: {
-    text:
-      '# ༻ 🛡️ │ ПРЕДУПРЕЖДЕНИЕ\n' +
-      '## 𝄢 👤 │ {member}\n' +
-      '## ༻ 📖 │ Глава: {chapter}\n' +
-      '## ༻ 📄 │ Пункт: {point}\n' +
-      '## ༻ ⚠️ │ Кол-во предупреждений за акт: {count}\n' +
-      '## ༻ 📜 │ Акт: {act}',
+    content: '### ༻❗│ {member}',
+    author: '༻❗│ Предупреждение',
+    description:
+      '*𝄢 🛡️ │ Модератор: {moderator}*\n\n' +
+      '𝄢│ Участник: **{member}**\n' +
+      '𝄢│ Глава: **{chapter}**\n' +
+      '𝄢│ Пункт: **{point}**\n' +
+      '𝄢│ Кол-во предупреждений: **{count} /3**\n' +
+      '𝄢│ АКТ: **{act}**',
   },
   moderatorRoles: [],
   deniedText: '## ༻ ❌ │ Действие невозможно',
@@ -108,10 +112,10 @@ function parseColor(value, fallback = DEFAULT_COLOR) {
   return fallback;
 }
 
-// {member}, {chapter}, {point}, {count}, {act}
+// {member}, {moderator}, {chapter}, {point}, {count}, {act}
 function fillTemplate(template, values) {
   return String(template || '').replace(
-    /\{(member|chapter|point|count|act)\}/g,
+    /\{(member|moderator|chapter|point|count|act)\}/g,
     (whole, key) => (values[key] == null ? '' : String(values[key]))
   );
 }
@@ -153,6 +157,17 @@ function deniedView(data) {
 function createButton(data) {
   const label = String(data.button?.label || '➕').slice(0, 80) || '➕';
   return new ButtonBuilder().setCustomId('predcreate').setLabel(label).setStyle(ButtonStyle.Secondary);
+}
+
+function deleteButton(data) {
+  const value = String(data.deleteButton?.emoji || '🗑️').trim() || '🗑️';
+  const button = new ButtonBuilder().setCustomId('preddelete').setStyle(ButtonStyle.Secondary);
+
+  const parsed = emojis.forButton(value);
+  if (parsed) button.setEmoji(parsed);
+  else button.setLabel(value.slice(0, 80) || 'Удалить');
+
+  return button;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,48 +218,59 @@ async function openModal(interaction) {
   }
 
   const modalData = data.modal || {};
-  const label = (key, fallback) =>
-    String(modalData[key] || FALLBACK.modal[key] || fallback).slice(0, 45);
+  const label = (key) => String(modalData[key] || FALLBACK.modal[key]).slice(0, 45);
+  // id сообщения с «➕» переносим в окно, чтобы после отправки ответить именно на него
+  const sourceId = interaction.message?.id || '';
 
   const modal = new ModalBuilder()
-    .setCustomId('predmodal')
-    .setTitle(label('title', FALLBACK.modal.title));
+    .setCustomId(`predmodal:${sourceId}`)
+    .setTitle(label('title'));
 
   modal.addComponents(
     new LabelBuilder()
-      .setLabel(label('memberLabel', FALLBACK.modal.memberLabel))
+      .setLabel(label('memberLabel'))
       .setUserSelectMenuComponent(
         new UserSelectMenuBuilder()
           .setCustomId('pred_member')
           .setMinValues(1)
           .setMaxValues(1)
       ),
-    textField('pred_chapter', label('chapterLabel', FALLBACK.modal.chapterLabel)),
-    textField('pred_point', label('pointLabel', FALLBACK.modal.pointLabel)),
-    textField('pred_count', label('countLabel', FALLBACK.modal.countLabel), 3),
-    textField('pred_act', label('actLabel', FALLBACK.modal.actLabel))
+    textField('pred_chapter', label('chapterLabel')),
+    textField('pred_point', label('pointLabel')),
+    textField('pred_count', label('countLabel'), 3),
+    textField('pred_act', label('actLabel'))
   );
 
   await interaction.showModal(modal);
 }
 
 // ---------------------------------------------------------------------------
-// Публикация предупреждения
+// Публикация предупреждения — ответом на сообщение с «➕»
 // ---------------------------------------------------------------------------
-function publicationView(values) {
+function publicationView(interaction, values) {
   const data = read();
-  const text = fillTemplate(data.publication?.text || FALLBACK.publication.text, values);
+  const icon = interaction.guild?.iconURL({ size: 256 }) ?? undefined;
+  const publication = data.publication || FALLBACK.publication;
 
-  const container = new ContainerBuilder()
-    .setAccentColor(parseColor(data.color))
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(emojis.resolve(text).slice(0, 4000))
-    );
+  const content = fillTemplate(publication.content || FALLBACK.publication.content, values);
+  const description = fillTemplate(
+    publication.description || FALLBACK.publication.description,
+    values
+  );
+
+  const embed = new EmbedBuilder()
+    .setColor(parseColor(data.color))
+    .setAuthor({ name: publication.author || FALLBACK.publication.author })
+    .setDescription(emojis.resolve(description).slice(0, 4096));
+
+  // Аватарка SW — миниатюра справа
+  if (icon) embed.setThumbnail(icon);
 
   return {
-    components: [container],
-    flags: MessageFlags.IsComponentsV2,
-    allowedMentions: { users: [values.memberId] },
+    content: emojis.resolve(content).slice(0, 2000),
+    embeds: [embed],
+    components: [new ActionRowBuilder().addComponents(createButton(data), deleteButton(data))],
+    allowedMentions: { users: [values.memberId], repliedUser: false },
   };
 }
 
@@ -294,6 +320,11 @@ async function submitPred(interaction) {
     return;
   }
 
+  // Сообщение с «➕» запоминаем до deferUpdate — потом interaction.message пустеет
+  const parts = String(interaction.customId || '').split(':');
+  const sourceId = parts[1] || '';
+  const sourceMessage = interaction.message ?? null;
+
   // Подтверждаем окно без «SlendyWing думает» — просто закрываем его
   let usedReply = false;
   try {
@@ -304,15 +335,37 @@ async function submitPred(interaction) {
   }
 
   try {
-    const payload = publicationView({
+    const payload = publicationView(interaction, {
       memberId: user.id,
       member: `<@${user.id}>`,
+      moderator: interaction.user?.id ? `<@${interaction.user.id}>` : '—',
       chapter,
       point,
       count: String(count),
       act,
     });
-    await interaction.channel.send(payload);
+
+    // Публикуем ответом на сообщение с «➕» (как в проверке достижений)
+    let source = sourceMessage;
+    if (!source && sourceId) {
+      try {
+        source = await interaction.channel.messages.fetch(sourceId);
+      } catch {
+        source = null;
+      }
+    }
+
+    if (source?.reply) {
+      try {
+        await source.reply(payload);
+      } catch (err) {
+        console.log(`  [!] Не удалось ответить на сообщение с «➕»: ${err.message}`);
+        await interaction.channel.send(payload);
+      }
+    } else {
+      await interaction.channel.send(payload);
+    }
+
     if (usedReply) await interaction.deleteReply().catch(() => {});
   } catch (err) {
     console.log(`  [!] Не удалось опубликовать предупреждение: ${err.message}`);
@@ -325,11 +378,29 @@ async function submitPred(interaction) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Удаление предупреждения
+// ---------------------------------------------------------------------------
+async function deletePost(interaction) {
+  const data = read();
+
+  // Удалять могут только администраторы и модераторы из pred.json
+  if (!canModerate(interaction, data)) {
+    await interaction.reply(deniedView(data));
+    return;
+  }
+
+  // Без текста: подтверждаем нажатие и удаляем само сообщение
+  await interaction.deferUpdate();
+  await interaction.message.delete().catch(() => {});
+}
+
 module.exports = {
   PRED_PATH,
   mainView,
   openModal,
   submitPred,
+  deletePost,
   canModerate,
   deniedView,
   read,

@@ -568,6 +568,16 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // preddelete — удалить предупреждение (администратор или модератор)
+    if (id === 'preddelete') {
+      try {
+        await pred.deletePost(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка удаления предупреждения: ${err.message}`);
+      }
+      return;
+    }
+
     // games:* — каталог игр
     if (id.startsWith('games:')) {
       try {
