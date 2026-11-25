@@ -10,6 +10,7 @@ const ads = require('./ads');         // реклама (/пиар)
 const games = require('./games');     // каталог игр (/игры)
 const achievements = require('./achievements'); // меню достижений (/достижение)
 const review = require('./review');   // проверка достижений (/првдостижений)
+const pred = require('./pred');       // выдача предупреждений (/пред)
 
 // ---------------------------------------------------------------------------
 // Настройки сервера SlendyWing
@@ -179,6 +180,10 @@ const COMMANDS = [
     name: 'првдостижений',
     description: 'Отправить меню проверки достижений в этот канал',
     defaultMemberPermissions: '0',
+  },
+  {
+    name: 'пред',
+    description: 'Выдать предупреждение участнику',
   },
   { name: 'status', description: 'Показать состояние бота и категории TempVoice' },
   { name: 'channels', description: 'Список голосовых каналов категории и их состояние' },
@@ -553,6 +558,16 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // predcreate — открыть окно выдачи предупреждения
+    if (id === 'predcreate') {
+      try {
+        await pred.openModal(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка окна предупреждения: ${err.message}`);
+      }
+      return;
+    }
+
     // games:* — каталог игр
     if (id.startsWith('games:')) {
       try {
@@ -635,6 +650,16 @@ client.on('interactionCreate', async (interaction) => {
       }
       return;
     }
+
+    // Окно выдачи предупреждения
+    if (interaction.customId === 'predmodal') {
+      try {
+        await pred.submitPred(interaction);
+      } catch (err) {
+        console.log(`  [!] Ошибка выдачи предупреждения: ${err.message}`);
+      }
+      return;
+    }
     return;
   }
 
@@ -694,6 +719,19 @@ client.on('interactionCreate', async (interaction) => {
       // Карточка проверки достижений — обычным сообщением, чтобы кнопкой могли пользоваться все
       await interaction.reply({ content: 'Меню проверки достижений отправлено 👇', flags: MessageFlags.Ephemeral });
       await interaction.channel.send(review.mainView(interaction));
+      return;
+    }
+
+    if (interaction.commandName === 'пред') {
+      // Команда для модераторов и роли «Крылышки»: остальным — отказ
+      const data = pred.read();
+      if (!pred.canModerate(interaction, data)) {
+        await interaction.reply(pred.deniedView(data));
+        return;
+      }
+
+      await interaction.reply({ content: 'Карточка предупреждений отправлена 👇', flags: MessageFlags.Ephemeral });
+      await interaction.channel.send(pred.mainView(interaction));
       return;
     }
 
