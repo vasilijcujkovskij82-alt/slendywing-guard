@@ -661,8 +661,8 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    // Окно выдачи предупреждения
-    if (interaction.customId === 'predmodal') {
+    // Окно выдачи предупреждения: predmodal:<id сообщения с «➕»>
+    if (interaction.customId.startsWith('predmodal')) {
       try {
         await pred.submitPred(interaction);
       } catch (err) {
