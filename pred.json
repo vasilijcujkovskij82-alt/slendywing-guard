@@ -20,7 +20,7 @@
   },
   "publication": {
     "content": "### ༻❗│ {member}",
-    "author": "### ༻❗│ Предупреждение ",
+    "author": " ༻❗│ Предупреждение ",
     "description": "*𝄢 🛡️ │ Модератор: {moderator}*\n\n𝄢│ Участник: **{member}**\n𝄢│ Глава: **{chapter}**\n𝄢│ Пункт: **{point}**\n𝄢│ Кол-во предупреждений: **{count} /3**\n𝄢│ АКТ: **{act}**"
   },
   "moderatorRoles": [
