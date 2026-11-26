@@ -67,6 +67,7 @@
     <button class="tab" data-tab="games" type="button">Игры</button>
     <button class="tab" data-tab="ach" type="button">Достижения</button>
     <button class="tab" data-tab="review" type="button">Проверка достижений</button>
+    <button class="tab" data-tab="pred" type="button">Предупреждения</button>
   </div>
   <span id="status" class="status"></span>
   <button class="btn" id="addBtn" type="button">+ Раздел</button>
@@ -399,6 +400,94 @@
     </div>
   </div>
 
+  <div id="predPanel" hidden>
+    <div class="card">
+      <h2>Предупреждения · основное</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Цвет рамки (hex или RGB)</label>
+          <input type="text" id="predColor" placeholder="#262B64 или 38 43 100">
+        </div>
+        <div class="row">
+          <label>Автор карточки</label>
+          <input type="text" id="predAuthor" placeholder="𝄢 SLENDYWING 𝄢">
+        </div>
+      </div>
+      <div class="row">
+        <label>Текст главной карточки</label>
+        <textarea id="predMainText" data-field="pred-main-text" style="min-height:110px"></textarea>
+        <div class="counter" id="predMainCounter">0 / 4096</div>
+      </div>
+      <div class="hint">Миниатюра главной карточки — всегда аватарка сервера.</div>
+    </div>
+
+    <div class="card">
+      <h2>Кнопки</h2>
+      <div class="grid">
+        <div class="row">
+          <label>Кнопка «плюс»</label>
+          <input type="text" id="predButtonLabel" placeholder="➕">
+        </div>
+        <div class="row">
+          <label>Мусорный бак на публикациях</label>
+          <input type="text" id="predDeleteEmoji" placeholder="🗑️">
+        </div>
+      </div>
+      <div class="hint">«Плюс» есть на главной карточке и на каждой публикации. «Мусорный бак» — только на публикациях.</div>
+    </div>
+
+    <div class="card">
+      <h2>Окно выдачи</h2>
+      <div class="grid">
+        <div class="row"><label>Заголовок окна</label><input type="text" id="predModalTitle" placeholder="Выдача предупреждений"></div>
+        <div class="row"><label>Подпись поля «Участник»</label><input type="text" id="predMemberLabel" placeholder="Участник"></div>
+        <div class="row"><label>Подпись поля «Глава»</label><input type="text" id="predChapterLabel" placeholder="Глава"></div>
+        <div class="row"><label>Подпись поля «Пункт»</label><input type="text" id="predPointLabel" placeholder="Пункт"></div>
+        <div class="row"><label>Подпись поля «Кол-во предупреждений за акт»</label><input type="text" id="predCountLabel" placeholder="Кол-во предупреждений за акт"></div>
+        <div class="row"><label>Подпись поля «Акт»</label><input type="text" id="predActLabel" placeholder="Акт"></div>
+      </div>
+      <div class="hint">
+        «Кол-во предупреждений за акт» — список 1 / 2 / 3, «Акт» — список 1 / 2.
+        Подписи полей и заголовок окна — до 45 символов.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Публикация</h2>
+      <div class="row">
+        <label>Текст над карточкой (markdown Discord)</label>
+        <textarea id="predPubContent" data-field="pred-pub-content" style="min-height:80px"></textarea>
+        <div class="counter" id="predPubContentCounter">0 / 2000</div>
+      </div>
+      <div class="row">
+        <label>Автор карточки публикации</label>
+        <input type="text" id="predPubAuthor" placeholder="༻❗│ Предупреждение">
+      </div>
+      <div class="row">
+        <label>Описание карточки (markdown Discord)</label>
+        <textarea id="predPubDescription" data-field="pred-pub-description" style="min-height:170px"></textarea>
+        <div class="counter" id="predPubDescriptionCounter">0 / 4096</div>
+      </div>
+      <div class="hint">
+        Плейсхолдеры: <b>{member}</b> — упоминание участника, <b>{moderator}</b> — упоминание модератора,
+        <b>{chapter}</b> — глава, <b>{point}</b> — пункт, <b>{count}</b> — кол-во предупреждений,
+        <b>{act}</b> — акт.
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label>Роли модераторов, которые могут удалять посты (ID через запятую)</label>
+        <input type="text" id="predModRoles" placeholder="1530261219766702140, 1294382199713300510">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Сообщения</h2>
+      <div class="row">
+        <label>Текст при запрете действия</label>
+        <input type="text" id="predDeniedText" placeholder="## ༻ ❌ │ Действие невозможно">
+      </div>
+    </div>
+  </div>
+
   <div id="gamesPanel" hidden>
     <div class="card">
       <h2>Игры · главная карточка</h2>
@@ -541,6 +630,7 @@ let adsState = null;
 let gamesState = null;
 let achievementsState = null;
 let reviewState = null;
+let predState = null;
 let activeTab = 'nav';
 let allEmojis = [];
 let lastField = null;
@@ -567,6 +657,7 @@ function switchTab(tab) {
   document.getElementById('gamesPanel').hidden = tab !== 'games';
   document.getElementById('achPanel').hidden = tab !== 'ach';
   document.getElementById('reviewPanel').hidden = tab !== 'review';
+  document.getElementById('predPanel').hidden = tab !== 'pred';
   document.getElementById('addBtn').hidden = tab !== 'nav';
   document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
 
@@ -605,6 +696,13 @@ function switchTab(tab) {
     else if (changed) {
       fillReviewDom();
       setStatus('Проверка достижений загружена', 'ok');
+    }
+  }
+  if (tab === 'pred') {
+    if (!predState) loadPred();
+    else if (changed) {
+      fillPredDom();
+      setStatus('Предупреждения загружены', 'ok');
     }
   }
 }
@@ -2067,6 +2165,176 @@ async function saveReview() {
 }
 
 // ---------------------------------------------------------------------------
+// Предупреждения (/пред)
+// ---------------------------------------------------------------------------
+let predBindingsReady = false;
+
+function updatePredCounters() {
+  const main = document.getElementById('predMainText');
+  const mainCounter = document.getElementById('predMainCounter');
+  if (main && mainCounter) {
+    mainCounter.textContent = `${main.value.length} / 4096`;
+    mainCounter.style.color = main.value.length > 4096 ? '#f08a8a' : '';
+  }
+
+  const content = document.getElementById('predPubContent');
+  const contentCounter = document.getElementById('predPubContentCounter');
+  if (content && contentCounter) {
+    contentCounter.textContent = `${content.value.length} / 2000`;
+    contentCounter.style.color = content.value.length > 2000 ? '#f08a8a' : '';
+  }
+
+  const description = document.getElementById('predPubDescription');
+  const descriptionCounter = document.getElementById('predPubDescriptionCounter');
+  if (description && descriptionCounter) {
+    descriptionCounter.textContent = `${description.value.length} / 4096`;
+    descriptionCounter.style.color = description.value.length > 4096 ? '#f08a8a' : '';
+  }
+}
+
+function fillPredDom() {
+  if (!predState) return;
+
+  const values = {
+    predColor: predState.color || '#262B64',
+    predAuthor: predState.author || '',
+    predMainText: predState.main?.text || '',
+    predButtonLabel: predState.button?.label || '➕',
+    predDeleteEmoji: predState.deleteButton?.emoji || '🗑️',
+    predModalTitle: predState.modal?.title || '',
+    predMemberLabel: predState.modal?.memberLabel || '',
+    predChapterLabel: predState.modal?.chapterLabel || '',
+    predPointLabel: predState.modal?.pointLabel || '',
+    predCountLabel: predState.modal?.countLabel || '',
+    predActLabel: predState.modal?.actLabel || '',
+    predPubContent: predState.publication?.content || '',
+    predPubAuthor: predState.publication?.author || '',
+    predPubDescription: predState.publication?.description || '',
+    predModRoles: (predState.moderatorRoles || []).join(', '),
+    predDeniedText: predState.deniedText || '',
+  };
+
+  for (const [id, value] of Object.entries(values)) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  }
+
+  updatePredCounters();
+}
+
+async function loadPred() {
+  setStatus('Загружаю предупреждения...');
+  try {
+    const res = await fetch('/api/pred');
+    const data = await res.json();
+    if (data && data.ok === false) {
+      setStatus('Предупреждения: ' + (data.error || 'ошибка'), 'err');
+      return;
+    }
+    predState = data;
+  } catch (err) {
+    setStatus('Предупреждения не загрузились: ' + err.message, 'err');
+    return;
+  }
+
+  fillPredDom();
+  setStatus('Предупреждения загружены', 'ok');
+}
+
+function bindPredFields() {
+  if (predBindingsReady) return;
+  predBindingsReady = true;
+
+  const fields = {
+    predColor: (value) => { predState.color = value.trim() || '#262B64'; },
+    predAuthor: (value) => { predState.author = value; },
+    predMainText: (value) => { predState.main = predState.main || {}; predState.main.text = value; },
+    predButtonLabel: (value) => { predState.button = predState.button || {}; predState.button.label = value.trim() || '➕'; },
+    predDeleteEmoji: (value) => { predState.deleteButton = predState.deleteButton || {}; predState.deleteButton.emoji = value.trim() || '🗑️'; },
+    predModalTitle: (value) => { predState.modal = predState.modal || {}; predState.modal.title = value; },
+    predMemberLabel: (value) => { predState.modal = predState.modal || {}; predState.modal.memberLabel = value; },
+    predChapterLabel: (value) => { predState.modal = predState.modal || {}; predState.modal.chapterLabel = value; },
+    predPointLabel: (value) => { predState.modal = predState.modal || {}; predState.modal.pointLabel = value; },
+    predCountLabel: (value) => { predState.modal = predState.modal || {}; predState.modal.countLabel = value; },
+    predActLabel: (value) => { predState.modal = predState.modal || {}; predState.modal.actLabel = value; },
+    predPubContent: (value) => { predState.publication = predState.publication || {}; predState.publication.content = value; },
+    predPubAuthor: (value) => { predState.publication = predState.publication || {}; predState.publication.author = value; },
+    predPubDescription: (value) => { predState.publication = predState.publication || {}; predState.publication.description = value; },
+    predModRoles: (value) => { predState.moderatorRoles = parseIdList(value); },
+    predDeniedText: (value) => { predState.deniedText = value; },
+  };
+
+  for (const [id, apply] of Object.entries(fields)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.addEventListener('input', () => {
+      if (!predState) return;
+      apply(el.value);
+      if (id === 'predMainText' || id === 'predPubContent' || id === 'predPubDescription') {
+        updatePredCounters();
+      }
+    });
+  }
+}
+
+async function savePred() {
+  if (!predState) return;
+
+  if ((predState.main?.text || '').length > 4096) {
+    setStatus('Текст главной карточки больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+  if ((predState.publication?.content || '').length > 2000) {
+    setStatus('Текст над карточкой больше 2000 символов — Discord не примет.', 'err');
+    return;
+  }
+  if ((predState.publication?.description || '').length > 4096) {
+    setStatus('Описание карточки больше 4096 символов — Discord не примет.', 'err');
+    return;
+  }
+  if ((predState.publication?.author || '').length > 256) {
+    setStatus('Автор карточки публикации больше 256 символов — Discord не примет.', 'err');
+    return;
+  }
+  if ((predState.modal?.title || '').length > 45) {
+    setStatus('Заголовок окна больше 45 символов — Discord не примет.', 'err');
+    return;
+  }
+
+  for (const [id, label] of [
+    ['memberLabel', 'Участник'],
+    ['chapterLabel', 'Глава'],
+    ['pointLabel', 'Пункт'],
+    ['countLabel', 'Кол-во предупреждений за акт'],
+    ['actLabel', 'Акт'],
+  ]) {
+    if ((predState.modal?.[id] || '').length > 45) {
+      setStatus(`Подпись поля «${label}» больше 45 символов — Discord не примет.`, 'err');
+      return;
+    }
+  }
+
+  setStatus('Сохраняю...');
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/pred', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(predState),
+    });
+    const data = await res.json();
+    if (data.ok) setStatus(data.message, 'ok');
+    else setStatus('Ошибка: ' + (data.error || 'неизвестно'), 'err');
+  } catch (err) {
+    setStatus('Ошибка сети: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Кнопки (все кнопки бота в одном месте)
 // ---------------------------------------------------------------------------
 async function loadButtons() {
@@ -2613,6 +2881,11 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     return;
   }
 
+  if (activeTab === 'pred') {
+    await savePred();
+    return;
+  }
+
   state.color = document.getElementById('color').value.trim() || '#262B64';
   state.bannerUrl = document.getElementById('bannerUrl').value.trim();
 
@@ -2663,6 +2936,7 @@ bindAdsFields();
 bindGamesFields();
 bindAchFields();
 bindReviewFields();
+bindPredFields();
 load().catch((err) => setStatus('Не загрузилось: ' + err.message, 'err'));
 </script>
 </body>

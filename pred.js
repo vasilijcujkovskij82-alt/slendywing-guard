@@ -210,14 +210,14 @@ function textField(customId, label, maxLength = 100) {
     );
 }
 
-// Список чисел 1–3 для «Кол-во предупреждений» и «Акт»
-function numberSelect(customId, label) {
+// Список чисел для «Кол-во предупреждений» (1–3) и «Акт» (1–2)
+function numberSelect(customId, label, values) {
   const select = new StringSelectMenuBuilder()
     .setCustomId(customId)
     .setMinValues(1)
     .setMaxValues(1)
     .addOptions(
-      ['1', '2', '3'].map((value) => ({ label: value, value }))
+      values.map((value) => ({ label: value, value }))
     );
 
   return new LabelBuilder()
@@ -253,8 +253,8 @@ async function openModal(interaction) {
       ),
     textField('pred_chapter', label('chapterLabel')),
     textField('pred_point', label('pointLabel')),
-    numberSelect('pred_count', label('countLabel')),
-    numberSelect('pred_act', label('actLabel'))
+    numberSelect('pred_count', label('countLabel'), ['1', '2', '3']),
+    numberSelect('pred_act', label('actLabel'), ['1', '2'])
   );
 
   await interaction.showModal(modal);
@@ -338,9 +338,9 @@ async function submitPred(interaction) {
     return;
   }
 
-  if (!['1', '2', '3'].includes(countRaw) || !['1', '2', '3'].includes(act)) {
+  if (!['1', '2', '3'].includes(countRaw) || !['1', '2'].includes(act)) {
     await interaction.reply({
-      content: 'Выбери кол-во предупреждений и акт от 1 до 3.',
+      content: 'Выбери кол-во предупреждений (1–3) и акт (1–2).',
       flags: MessageFlags.Ephemeral,
     });
     return;

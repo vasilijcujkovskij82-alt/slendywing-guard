@@ -15,6 +15,7 @@ const ADS_PATH = path.join(ROOT, 'ads.json');
 const GAMES_PATH = path.join(ROOT, 'games.json');
 const ACHIEVEMENTS_PATH = path.join(ROOT, 'achievements.json');
 const REVIEW_PATH = path.join(ROOT, 'review.json');
+const PRED_PATH = path.join(ROOT, 'pred.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = 3060;
 
@@ -563,6 +564,106 @@ const server = http.createServer((req, res) => {
       }
 
       const result = commitAndPush(['review.json'], 'Update review command via editor');
+      return send(res, result.ok ? 200 : 500, JSON.stringify(result));
+    });
+
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/pred') {
+    try {
+      return send(res, 200, fs.readFileSync(PRED_PATH, 'utf8'));
+    } catch (err) {
+      return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/pred') {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 2_000_000) req.destroy();
+    });
+
+    req.on('end', () => {
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Некорректный JSON' }));
+      }
+
+      if (!data || typeof data !== 'object' || !data.main || typeof data.main !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля main' }));
+      }
+
+      if (!data.publication || typeof data.publication !== 'object') {
+        return send(res, 400, JSON.stringify({ ok: false, error: 'Нет поля publication' }));
+      }
+
+      if ((data.main.text || '').length > 4096) {
+        return send(
+          res,
+          400,
+          JSON.stringify({ ok: false, error: 'Текст главной карточки больше 4096 символов — Discord не примет.' })
+        );
+      }
+
+      if ((data.publication.content || '').length > 2000) {
+        return send(
+          res,
+          400,
+          JSON.stringify({ ok: false, error: 'Текст над карточкой больше 2000 символов — Discord не примет.' })
+        );
+      }
+
+      if ((data.publication.description || '').length > 4096) {
+        return send(
+          res,
+          400,
+          JSON.stringify({ ok: false, error: 'Описание карточки больше 4096 символов — Discord не примет.' })
+        );
+      }
+
+      if ((data.publication.author || '').length > 256) {
+        return send(
+          res,
+          400,
+          JSON.stringify({ ok: false, error: 'Автор карточки больше 256 символов — Discord не примет.' })
+        );
+      }
+
+      if ((data.modal?.title || '').length > 45) {
+        return send(
+          res,
+          400,
+          JSON.stringify({ ok: false, error: 'Заголовок окна больше 45 символов — Discord не примет.' })
+        );
+      }
+
+      for (const [id, label] of [
+        ['memberLabel', 'Участник'],
+        ['chapterLabel', 'Глава'],
+        ['pointLabel', 'Пункт'],
+        ['countLabel', 'Кол-во предупреждений за акт'],
+        ['actLabel', 'Акт'],
+      ]) {
+        if ((data.modal?.[id] || '').length > 45) {
+          return send(
+            res,
+            400,
+            JSON.stringify({ ok: false, error: `Подпись поля «${label}» больше 45 символов — Discord не примет.` })
+          );
+        }
+      }
+
+      try {
+        fs.writeFileSync(PRED_PATH, JSON.stringify(data, null, 2) + '\n', 'utf8');
+      } catch (err) {
+        return send(res, 500, JSON.stringify({ ok: false, error: err.message }));
+      }
+
+      const result = commitAndPush(['pred.json'], 'Update warnings via editor');
       return send(res, result.ok ? 200 : 500, JSON.stringify(result));
     });
 
